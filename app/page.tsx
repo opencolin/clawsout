@@ -8,9 +8,11 @@ import type {
   Transcript,
 } from "@/lib/types";
 import { autoCast, DEFAULT_NARRATOR_VOICE } from "@/lib/voices";
-import { MODELS, DEFAULT_MODEL } from "@/lib/llm";
+import { MODELS, DEFAULT_MODEL, type BYOKeys } from "@/lib/llm";
+import type { BYOProvider } from "@/lib/errors";
 import Casting from "@/components/Casting";
 import Player from "@/components/Player";
+import ByoKeyPrompt from "@/components/ByoKeyPrompt";
 
 type Phase = "idle" | "parsing" | "scripting" | "synthesizing" | "done";
 
@@ -54,6 +56,20 @@ const AUDIO_EXT = new Set([
   "mpga",
 ]);
 
+const BYO_LS_KEY = "clawsout.byoKeys";
+
+type RetryAction =
+  | { kind: "parse" }
+  | { kind: "script-and-tts" }
+  | { kind: "tts-only"; script: Script };
+
+type CreditPrompt = {
+  provider: BYOProvider;
+  reason: "insufficient_credits" | "missing_key";
+  message: string;
+  retry: RetryAction;
+};
+
 function fileExt(name: string): string {
   return name.split(".").pop()?.toLowerCase() ?? "";
 }
@@ -73,6 +89,20 @@ function clawsLabel(level: number): string {
   return "Maximum claws";
 }
 
+function loadByoKeys(): BYOKeys {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(BYO_LS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveByoKeys(k: BYOKeys) {
+  localStorage.setItem(BYO_LS_KEY, JSON.stringify(k));
+}
+
 export default function Home() {
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
@@ -89,7 +119,13 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [script, setScript] = useState<Script | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [byoKeys, setByoKeys] = useState<BYOKeys>({});
+  const [creditPrompt, setCreditPrompt] = useState<CreditPrompt | null>(null);
   const audioBlobUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    setByoKeys(loadByoKeys());
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -117,7 +153,39 @@ export default function Home() {
     if (f) await onFile(f);
   };
 
-  const parse = async () => {
+  type ApiError = {
+    error?: string;
+    code?: string;
+    provider?: string;
+    needsByoKey?: boolean;
+  };
+
+  const handleCreditError = (
+    data: ApiError,
+    retry: RetryAction,
+  ): boolean => {
+    if (!data.needsByoKey) return false;
+    const knownProviders: BYOProvider[] = [
+      "anthropic",
+      "openai",
+      "google",
+      "nebius",
+      "elevenlabs",
+    ];
+    if (!knownProviders.includes(data.provider as BYOProvider)) return false;
+    setCreditPrompt({
+      provider: data.provider as BYOProvider,
+      reason:
+        data.code === "missing_key" ? "missing_key" : "insufficient_credits",
+      message: data.error ?? "Out of credits or no key configured.",
+      retry,
+    });
+    setPhase("idle");
+    return true;
+  };
+
+  const parse = async (overrideKeys?: BYOKeys) => {
+    const keys = overrideKeys ?? byoKeys;
     setError(null);
     setPhase("parsing");
     try {
@@ -125,6 +193,9 @@ export default function Home() {
       if (file) {
         const form = new FormData();
         form.append("file", file);
+        if (AUDIO_EXT.has(fileExt(file.name)) && keys.openai) {
+          form.append("byoKey", keys.openai);
+        }
         res = await fetch("/api/parse", { method: "POST", body: form });
       } else {
         res = await fetch("/api/parse", {
@@ -134,7 +205,10 @@ export default function Home() {
         });
       }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "parse failed");
+      if (!res.ok) {
+        if (handleCreditError(data, { kind: "parse" })) return;
+        throw new Error(data.error || "parse failed");
+      }
       setTranscript(data.transcript);
       setCast(autoCast(data.transcript.speakers));
       setPhase("idle");
@@ -144,50 +218,71 @@ export default function Home() {
     }
   };
 
-  const generate = async () => {
+  const generate = async (overrideKeys?: BYOKeys, fromScript?: Script) => {
     if (!transcript) return;
+    const keys = overrideKeys ?? byoKeys;
     setError(null);
-    setScript(null);
-    setAudioUrl(null);
-    if (audioBlobUrlRef.current) {
-      URL.revokeObjectURL(audioBlobUrlRef.current);
-      audioBlobUrlRef.current = null;
+    if (!fromScript) {
+      setScript(null);
+      setAudioUrl(null);
+      if (audioBlobUrlRef.current) {
+        URL.revokeObjectURL(audioBlobUrlRef.current);
+        audioBlobUrlRef.current = null;
+      }
     }
 
     try {
-      setPhase("scripting");
-      const sRes = await fetch("/api/script", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          transcript,
-          mode,
-          guide: guide.trim() || undefined,
-          clawsOut,
-          model,
-        }),
-      });
-      const sData = await sRes.json();
-      if (!sRes.ok) throw new Error(sData.error || "script failed");
-      const newScript: Script = {
-        title: sData.title,
-        showNotes: sData.showNotes,
-        lines: sData.lines,
-      };
-      setScript(newScript);
+      let workingScript: Script;
+      if (fromScript) {
+        workingScript = fromScript;
+        setScript(fromScript);
+      } else {
+        setPhase("scripting");
+        const sRes = await fetch("/api/script", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            transcript,
+            mode,
+            guide: guide.trim() || undefined,
+            clawsOut,
+            model,
+            byoKeys: keys,
+          }),
+        });
+        const sData = await sRes.json();
+        if (!sRes.ok) {
+          if (handleCreditError(sData, { kind: "script-and-tts" })) return;
+          throw new Error(sData.error || "script failed");
+        }
+        workingScript = {
+          title: sData.title,
+          showNotes: sData.showNotes,
+          lines: sData.lines,
+        };
+        setScript(workingScript);
+      }
 
       setPhase("synthesizing");
       const tRes = await fetch("/api/tts", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          lines: newScript.lines,
+          lines: workingScript.lines,
           cast,
           narratorVoiceId: narrator,
+          byoKey: keys.elevenlabs,
         }),
       });
       if (!tRes.ok) {
-        const eData = await tRes.json().catch(() => ({}));
+        const eData = (await tRes.json().catch(() => ({}))) as ApiError;
+        if (
+          handleCreditError(eData, {
+            kind: "tts-only",
+            script: workingScript,
+          })
+        )
+          return;
         throw new Error(eData.error || `tts failed (${tRes.status})`);
       }
       const blob = await tRes.blob();
@@ -201,6 +296,22 @@ export default function Home() {
     }
   };
 
+  const onSaveBYOKey = (key: string) => {
+    if (!creditPrompt) return;
+    const newKeys = { ...byoKeys, [creditPrompt.provider]: key };
+    setByoKeys(newKeys);
+    saveByoKeys(newKeys);
+    const retry = creditPrompt.retry;
+    setCreditPrompt(null);
+    if (retry.kind === "parse") {
+      void parse(newKeys);
+    } else if (retry.kind === "script-and-tts") {
+      void generate(newKeys);
+    } else {
+      void generate(newKeys, retry.script);
+    }
+  };
+
   const reset = () => {
     setTranscript(null);
     setText("");
@@ -209,6 +320,7 @@ export default function Home() {
     setScript(null);
     setAudioUrl(null);
     setError(null);
+    setCreditPrompt(null);
     setPhase("idle");
     if (audioBlobUrlRef.current) {
       URL.revokeObjectURL(audioBlobUrlRef.current);
@@ -224,6 +336,13 @@ export default function Home() {
 
   const busy =
     phase === "parsing" || phase === "scripting" || phase === "synthesizing";
+
+  const anyByoKeySet = Object.values(byoKeys).some(Boolean);
+
+  const clearByoKeys = () => {
+    setByoKeys({});
+    saveByoKeys({});
+  };
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-6 py-10 sm:py-16 space-y-10">
@@ -323,7 +442,7 @@ export default function Home() {
 
           <button
             disabled={!text.trim() && !url.trim() && !file}
-            onClick={parse}
+            onClick={() => parse()}
             className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-800 disabled:text-zinc-500 text-black font-medium rounded-lg py-3"
           >
             {phase === "parsing"
@@ -479,7 +598,7 @@ export default function Home() {
         <section className="space-y-3">
           <button
             disabled={busy}
-            onClick={generate}
+            onClick={() => generate()}
             className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-800 disabled:text-zinc-500 text-black font-medium rounded-lg py-3 text-lg"
           >
             {busy
@@ -497,10 +616,37 @@ export default function Home() {
               </span>
             </div>
           )}
+          {anyByoKeySet && (
+            <div className="text-xs text-zinc-500 flex items-center justify-between">
+              <span>
+                Using your keys for:{" "}
+                {Object.entries(byoKeys)
+                  .filter(([, v]) => v)
+                  .map(([k]) => k)
+                  .join(", ")}
+              </span>
+              <button
+                onClick={clearByoKeys}
+                className="text-zinc-400 hover:text-white underline"
+              >
+                clear stored keys
+              </button>
+            </div>
+          )}
         </section>
       )}
 
-      {error && (
+      {creditPrompt && (
+        <ByoKeyPrompt
+          provider={creditPrompt.provider}
+          reason={creditPrompt.reason}
+          message={creditPrompt.message}
+          onSave={onSaveBYOKey}
+          onCancel={() => setCreditPrompt(null)}
+        />
+      )}
+
+      {error && !creditPrompt && (
         <div className="bg-red-900/30 border border-red-700 rounded-lg p-3 text-sm text-red-200">
           {error}
         </div>

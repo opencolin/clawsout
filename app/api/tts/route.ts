@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { synthesizeLine, concatMp3 } from "@/lib/tts";
 import { HOST_A_VOICE, HOST_B_VOICE, DEFAULT_NARRATOR_VOICE } from "@/lib/voices";
+import { classifyError, missingKeyError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -9,22 +10,26 @@ type Body = {
   lines: { speaker: string; text: string }[];
   cast: Record<string, string>;
   narratorVoiceId: string;
+  byoKey?: string;
 };
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.ELEVENLABS_API_KEY;
+    const body = (await req.json()) as Body;
+    const apiKey = body.byoKey || process.env.ELEVENLABS_API_KEY;
     if (!apiKey) {
+      const c = missingKeyError("elevenlabs");
       return NextResponse.json(
         {
-          error:
-            "ELEVENLABS_API_KEY not configured on the server. Add it in Vercel project env vars.",
+          error: c.message,
+          code: c.code,
+          provider: c.provider,
+          needsByoKey: true,
         },
-        { status: 500 },
+        { status: 402 },
       );
     }
 
-    const body = (await req.json()) as Body;
     if (!body.lines?.length) {
       return NextResponse.json({ error: "no lines to synthesize" }, { status: 400 });
     }
@@ -49,8 +54,16 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const c = classifyError(err, "elevenlabs");
+    return NextResponse.json(
+      {
+        error: c.message,
+        code: c.code,
+        provider: c.provider,
+        needsByoKey: c.needsByoKey,
+      },
+      { status: c.needsByoKey ? 402 : 502 },
+    );
   }
 }
 

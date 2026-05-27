@@ -1,6 +1,12 @@
 import { generateText, type LanguageModel } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import {
+  classifyError,
+  missingKeyError,
+  type BYOProvider,
+  type ClassifiedError,
+} from "./errors";
 
 const TOKEN_FACTORY_BASE_URL = "https://api.tokenfactory.nebius.com/v1";
 
@@ -72,41 +78,178 @@ export const MODELS: ModelDef[] = [
 
 export const DEFAULT_MODEL = "anthropic/claude-sonnet-4-5";
 
-let nebiusProvider: ReturnType<typeof createOpenAICompatible> | null = null;
-function nebiusModel(apiModel: string): LanguageModel {
-  const apiKey = process.env.NEBIUS_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "NEBIUS_API_KEY not configured on the server. Add it in Vercel project env vars to enable Nebius Token Factory models.",
-    );
+export type BYOKeys = Partial<Record<BYOProvider, string>>;
+
+export class LLMError extends Error {
+  constructor(public classified: ClassifiedError) {
+    super(classified.message);
+    this.name = "LLMError";
   }
-  if (!nebiusProvider) {
-    nebiusProvider = createOpenAICompatible({
-      name: "nebius",
-      baseURL: TOKEN_FACTORY_BASE_URL,
-      apiKey,
-    });
-  }
-  return nebiusProvider(apiModel);
+}
+
+export function modelDef(modelId: string): ModelDef {
+  return (
+    MODELS.find((m) => m.id === modelId) ??
+    MODELS.find((m) => m.id === DEFAULT_MODEL)!
+  );
+}
+
+export function modelByoProvider(def: ModelDef): BYOProvider {
+  if (def.provider === "nebius") return "nebius";
+  const prefix = def.apiModel.split("/")[0];
+  if (prefix === "anthropic") return "anthropic";
+  if (prefix === "openai") return "openai";
+  if (prefix === "google") return "google";
+  return "anthropic";
 }
 
 export async function callLLM(opts: {
   model: string;
   prompt: string;
+  byoKeys?: BYOKeys;
 }): Promise<string> {
-  const def =
-    MODELS.find((m) => m.id === opts.model) ??
-    MODELS.find((m) => m.id === DEFAULT_MODEL)!;
+  const def = modelDef(opts.model);
+  const provider = modelByoProvider(def);
+  const userKey = opts.byoKeys?.[provider];
 
-  const model: LanguageModel =
-    def.provider === "nebius" ? nebiusModel(def.apiModel) : gateway(def.apiModel);
+  try {
+    if (userKey) {
+      return await callDirectProvider(def, opts.prompt, userKey);
+    }
 
-  const { text } = await generateText({
-    model,
-    prompt: opts.prompt,
-    maxOutputTokens: 8000,
+    if (def.provider === "nebius") {
+      const envKey = process.env.NEBIUS_API_KEY;
+      if (!envKey) throw new LLMError(missingKeyError("nebius"));
+      return await callDirectProvider(def, opts.prompt, envKey);
+    }
+
+    const { text } = await generateText({
+      model: gateway(def.apiModel),
+      prompt: opts.prompt,
+      maxOutputTokens: 8000,
+    });
+    return text;
+  } catch (err: unknown) {
+    if (err instanceof LLMError) throw err;
+    throw new LLMError(classifyError(err, provider));
+  }
+}
+
+async function callDirectProvider(
+  def: ModelDef,
+  prompt: string,
+  apiKey: string,
+): Promise<string> {
+  if (def.provider === "nebius") {
+    const nebius = createOpenAICompatible({
+      name: "nebius",
+      baseURL: TOKEN_FACTORY_BASE_URL,
+      apiKey,
+    });
+    const { text } = await generateText({
+      model: nebius(def.apiModel) as LanguageModel,
+      prompt,
+      maxOutputTokens: 8000,
+    });
+    return text;
+  }
+
+  const prefix = def.apiModel.split("/")[0];
+  const bareModel = def.apiModel.slice(prefix.length + 1);
+
+  if (prefix === "anthropic") {
+    return callAnthropicDirect(bareModel, prompt, apiKey);
+  }
+  if (prefix === "openai") {
+    return callOpenAIDirect(bareModel, prompt, apiKey);
+  }
+  if (prefix === "google") {
+    return callGoogleDirect(bareModel, prompt, apiKey);
+  }
+  throw new Error(`No direct provider for ${def.apiModel}`);
+}
+
+async function callAnthropicDirect(
+  model: string,
+  prompt: string,
+  apiKey: string,
+): Promise<string> {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 8000,
+      messages: [{ role: "user", content: prompt }],
+    }),
   });
-  return text;
+  if (!res.ok) {
+    const text = await res.text();
+    const e = new Error(`Anthropic ${res.status}: ${text.slice(0, 400)}`);
+    (e as Error & { statusCode?: number }).statusCode = res.status;
+    throw e;
+  }
+  const data = await res.json();
+  return data.content?.[0]?.text ?? "";
+}
+
+async function callOpenAIDirect(
+  model: string,
+  prompt: string,
+  apiKey: string,
+): Promise<string> {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    const e = new Error(`OpenAI ${res.status}: ${text.slice(0, 400)}`);
+    (e as Error & { statusCode?: number }).statusCode = res.status;
+    throw e;
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
+async function callGoogleDirect(
+  model: string,
+  prompt: string,
+  apiKey: string,
+): Promise<string> {
+  const res = await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    const e = new Error(`Google ${res.status}: ${text.slice(0, 400)}`);
+    (e as Error & { statusCode?: number }).statusCode = res.status;
+    throw e;
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? "";
 }
 
 export function extractJson(text: string): unknown {

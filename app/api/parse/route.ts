@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseTranscript, fetchUrlText } from "@/lib/parsers";
 import { extractFile } from "@/lib/extractors";
 import { transcribeAudio, isAudioFile } from "@/lib/extractors/audio";
+import { classifyError, missingKeyError } from "@/lib/errors";
 import type { Transcript } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -31,18 +32,35 @@ export async function POST(req: NextRequest) {
       }
 
       if (isAudioFile(file.name)) {
-        const whisperKey = process.env.OPENAI_API_KEY;
+        const byoKey = (form.get("byoKey") as string) || "";
+        const whisperKey = byoKey || process.env.OPENAI_API_KEY;
         if (!whisperKey) {
+          const c = missingKeyError("openai");
           return NextResponse.json(
             {
-              error:
-                "Audio transcription requires OPENAI_API_KEY on the server. Add it in Vercel project env vars.",
+              error: c.message,
+              code: c.code,
+              provider: c.provider,
+              needsByoKey: true,
             },
-            { status: 500 },
+            { status: 402 },
           );
         }
         const language = (form.get("language") as string) || undefined;
-        text = await transcribeAudio({ file, apiKey: whisperKey, language });
+        try {
+          text = await transcribeAudio({ file, apiKey: whisperKey, language });
+        } catch (err) {
+          const c = classifyError(err, "openai");
+          return NextResponse.json(
+            {
+              error: c.message,
+              code: c.code,
+              provider: c.provider,
+              needsByoKey: c.needsByoKey,
+            },
+            { status: c.needsByoKey ? 402 : 502 },
+          );
+        }
         hint = "audio";
       } else {
         const extracted = await extractFile(file);

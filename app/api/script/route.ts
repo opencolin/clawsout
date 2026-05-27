@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scriptPrompt } from "@/lib/prompts";
-import { callLLM, extractJson, DEFAULT_MODEL } from "@/lib/llm";
+import {
+  callLLM,
+  extractJson,
+  DEFAULT_MODEL,
+  LLMError,
+  modelDef,
+  modelByoProvider,
+  type BYOKeys,
+} from "@/lib/llm";
 import type { ProductionMode, Script, Transcript } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -12,11 +20,16 @@ type Body = {
   guide?: string;
   clawsOut?: number;
   model?: string;
+  byoKeys?: BYOKeys;
 };
 
 export async function POST(req: NextRequest) {
+  let provider: ReturnType<typeof modelByoProvider> = "anthropic";
+
   try {
     const body = (await req.json()) as Body;
+    const def = modelDef(body.model || DEFAULT_MODEL);
+    provider = modelByoProvider(def);
 
     const clawsOut = Math.max(0, Math.min(10, body.clawsOut ?? 3));
     const prompt = scriptPrompt(
@@ -28,8 +41,9 @@ export async function POST(req: NextRequest) {
     );
 
     const raw = await callLLM({
-      model: body.model || DEFAULT_MODEL,
+      model: def.id,
       prompt,
+      byoKeys: body.byoKeys,
     });
 
     const parsed = extractJson(raw) as Partial<Script> & {
@@ -38,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     if (!parsed.lines || parsed.lines.length === 0) {
       return NextResponse.json(
-        { error: "LLM returned no script lines", raw: raw.slice(0, 500) },
+        { error: "Model returned no script lines", raw: raw.slice(0, 500) },
         { status: 502 },
       );
     }
@@ -49,7 +63,18 @@ export async function POST(req: NextRequest) {
       lines: parsed.lines,
     });
   } catch (err: unknown) {
+    if (err instanceof LLMError) {
+      return NextResponse.json(
+        {
+          error: err.classified.message,
+          code: err.classified.code,
+          provider: err.classified.provider,
+          needsByoKey: err.classified.needsByoKey,
+        },
+        { status: err.classified.needsByoKey ? 402 : 502 },
+      );
+    }
     const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg, provider }, { status: 500 });
   }
 }
