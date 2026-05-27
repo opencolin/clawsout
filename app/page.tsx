@@ -8,7 +8,7 @@ import type {
   Transcript,
 } from "@/lib/types";
 import { autoCast, DEFAULT_NARRATOR_VOICE } from "@/lib/voices";
-import { GATEWAY_MODELS, DEFAULT_MODEL } from "@/lib/llm";
+import { MODELS, DEFAULT_MODEL } from "@/lib/llm";
 import Casting from "@/components/Casting";
 import Player from "@/components/Player";
 
@@ -456,11 +456,20 @@ export default function Home() {
               onChange={(e) => setModel(e.target.value)}
               className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-200 max-w-full"
             >
-              {GATEWAY_MODELS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
+              <optgroup label="Vercel AI Gateway">
+                {MODELS.filter((m) => m.provider === "gateway").map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Nebius Token Factory">
+                {MODELS.filter((m) => m.provider === "nebius").map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </div>
         </section>
@@ -509,7 +518,7 @@ export default function Home() {
       )}
 
       <footer className="pt-12 pb-4 text-xs text-zinc-600">
-        Powered by Vercel AI Gateway + ElevenLabs. No accounts, no logging.
+        Powered by Vercel AI Gateway, Nebius Token Factory, and ElevenLabs. No accounts, no logging.
       </footer>
     </main>
   );

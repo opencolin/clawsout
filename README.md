@@ -71,7 +71,8 @@ Set these in your Vercel project's Environment Variables panel — visitors don'
 
 | Env var | Required for | Notes |
 |---|---|---|
-| `AI_GATEWAY_API_KEY` | Script generation | Auto-injected via OIDC on Vercel; only needed for local dev or non-Vercel hosting |
+| `AI_GATEWAY_API_KEY` | Gateway script models (Claude / GPT / Gemini) | Auto-injected via OIDC on Vercel; only needed for local dev or non-Vercel hosting |
+| `NEBIUS_API_KEY` | Nebius Token Factory models (Kimi K2.5, DeepSeek V3.2, DeepSeek R1) | Get one at [studio.nebius.com](https://studio.nebius.com/) |
 | `ELEVENLABS_API_KEY` | Voice synthesis | `sk_...` from [elevenlabs.io](https://elevenlabs.io/app/settings/api-keys) |
 | `OPENAI_API_KEY` | Audio/video transcription | Only needed if you accept audio uploads |
 
