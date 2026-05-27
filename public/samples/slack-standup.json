@@ -1,0 +1,86 @@
+[
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Sarah Chen", "display_name": "sarah" },
+    "text": "morning everyone — quick standup. I'm pushing the auth refactor today, finally. Going to merge once tests are green.",
+    "ts": "1748232000.000100"
+  },
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Adam Foster", "display_name": "adam" },
+    "text": "<@U02SARAH> great. Did you ever figure out the session-token issue from yesterday?",
+    "ts": "1748232060.000100"
+  },
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Sarah Chen", "display_name": "sarah" },
+    "text": "yeah, turns out we were double-encoding the JWT before sending. one-line fix once I traced it. only took six hours of staring at headers :sob:",
+    "ts": "1748232120.000100"
+  },
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Priya Raman", "display_name": "priya" },
+    "text": "lol classic. anyway — I'm finishing the new pricing page. Marketing wants it live before Friday's announcement.",
+    "ts": "1748232180.000100"
+  },
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Adam Foster", "display_name": "adam" },
+    "text": "wait, friday? I thought the announcement was next week. Did the date move and nobody told me?",
+    "ts": "1748232240.000100"
+  },
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Priya Raman", "display_name": "priya" },
+    "text": "yes lol. Anthony moved it up after the competitor leak yesterday. Did you see the TechCrunch piece?",
+    "ts": "1748232300.000100"
+  },
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Adam Foster", "display_name": "adam" },
+    "text": "no I have not been on the internet. so we are now shipping pricing, auth, AND the new dashboard in 3 days?",
+    "ts": "1748232360.000100"
+  },
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Sarah Chen", "display_name": "sarah" },
+    "text": "I think dashboard gets cut. We can ship pricing + auth and announce the dashboard as 'coming next week.'",
+    "ts": "1748232420.000100"
+  },
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Priya Raman", "display_name": "priya" },
+    "text": "agree. dashboard isn't ready for the demo flow anyway. Anthony will live.",
+    "ts": "1748232480.000100"
+  },
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Adam Foster", "display_name": "adam" },
+    "text": "ok so the plan is: Sarah ships auth today, Priya ships pricing tomorrow, I do the QA sweep Thursday, we announce Friday morning. Yes?",
+    "ts": "1748232540.000100"
+  },
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Sarah Chen", "display_name": "sarah" },
+    "text": "yes. also can we please not announce on a Friday afternoon next time. I am tired of weekend rollbacks.",
+    "ts": "1748232600.000100"
+  },
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Priya Raman", "display_name": "priya" },
+    "text": "FRIDAY MORNING. like, 9am Pacific. it's in the announcement doc.",
+    "ts": "1748232660.000100"
+  },
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Sarah Chen", "display_name": "sarah" },
+    "text": "ok ok. I'll trust the doc this time :pray:",
+    "ts": "1748232720.000100"
+  },
+  {
+    "type": "message",
+    "user_profile": { "real_name": "Adam Foster", "display_name": "adam" },
+    "text": "I'll send a calendar invite for a Thursday EOD sync. Bring laptops, bring snacks, bring resolve.",
+    "ts": "1748232780.000100"
+  }
+]

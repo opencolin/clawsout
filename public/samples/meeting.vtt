@@ -1,0 +1,46 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:06.500
+<v Dr. Patel>Welcome back, everyone. Let's get straight into the data from this week's rollout.
+
+00:00:06.500 --> 00:00:14.000
+<v Maria>So we hit 23% adoption in the first 72 hours, which is well above what we forecasted. The team has been incredible.
+
+00:00:14.000 --> 00:00:18.500
+<v Dr. Patel>Twenty three. And what was the forecast?
+
+00:00:18.500 --> 00:00:22.000
+<v Maria>Twelve to fifteen.
+
+00:00:22.000 --> 00:00:28.500
+<v Dr. Patel>Maria, that's almost double. Why? Tell me you have a theory.
+
+00:00:28.500 --> 00:00:38.000
+<v Maria>I think the in-app tour did a lot of heavy lifting. We tested a version without it on five percent of accounts and adoption was flat. Tour is doing the work.
+
+00:00:38.000 --> 00:00:45.000
+<v James>That tracks with what I'm seeing in support. Tickets are down forty percent week over week, even with way more active users.
+
+00:00:45.000 --> 00:00:50.500
+<v Dr. Patel>Down forty? While usage is up? James, are you sure?
+
+00:00:50.500 --> 00:00:56.000
+<v James>I pulled the numbers twice. It is genuinely down. People are figuring it out without us.
+
+00:00:56.000 --> 00:01:02.500
+<v Dr. Patel>Okay, this is the first feature in two years where the data is better than the plan. So what's the catch?
+
+00:01:02.500 --> 00:01:11.000
+<v Maria>Honestly? The catch is that we don't know how durable it is. Three days is not a trend. We need another two weeks before I'd call this a win.
+
+00:01:11.000 --> 00:01:15.000
+<v James>And the cost per session is up nine percent. We're going to feel that on the infra bill.
+
+00:01:15.000 --> 00:01:21.000
+<v Dr. Patel>Nine percent. Worth it if adoption holds. Not worth it if it normalizes back to fifteen. James, can you model both?
+
+00:01:21.000 --> 00:01:24.000
+<v James>By Friday.
+
+00:01:24.000 --> 00:01:28.000
+<v Dr. Patel>Good. Maria, beautiful work. Let's keep the champagne on ice.

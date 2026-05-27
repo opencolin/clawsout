@@ -1,36 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# clawsout
 
-## Getting Started
+Turn any transcript into a realistic multi-voice podcast — with a comedy dial that goes claws out.
 
-First, run the development server:
+Paste a Slack export, a meeting `.vtt`, a PDF, a Word doc, a URL, or any audio file. clawsout detects the speakers, casts each one a distinct voice, writes a podcast script in one of three formats at the comedy intensity you want, and synthesizes audio you can play or download.
+
+No accounts. No payment pages. Bring your own API keys — they stay in your browser.
+
+## Three production modes
+
+| Mode | What you get | Best for |
+|---|---|---|
+| **Reenactment** | AI voices perform the original participants, with a narrator for scene-setting | Slack threads, meetings, depositions |
+| **Documentary** | A narrator drives the story; real participants appear as ~20-second "clips" | Archival or investigative content |
+| **Commentary** | Two AI hosts discuss the transcript, quoting participants by name | Explaining content to outsiders |
+
+## Claws-out slider
+
+A 0–10 dial controls the tone of the script:
+
+| Level | Vibe | Audio tag usage |
+|---|---|---|
+| 0–1 | Professional / NPR-style | `[pauses]` only |
+| 2–3 | Warm and conversational (default: 3) | `[laughs]`, `[sighs]` |
+| 4–5 | Witty | Mild tags |
+| 6–7 | Sharp comedy | `[scoffs]`, `[dramatic pause]` arrive |
+| 8–9 | Claws out (reality-TV reunion energy) | `[eye-roll]`, `[chef's kiss]`, `[stage whisper]` |
+| 10 | Maximum claws | Every line lands a beat; tag liberally |
+
+The slider translates to specific tone instructions inserted into the LLM prompt — it doesn't just amplify a vibe, it changes the system's marching orders. Comedy stays observational; the prompts explicitly forbid punching down at identity, appearance, or vulnerabilities.
+
+## Input formats
+
+**Chat platforms**
+- **Slack JSON exports** — handles user profiles, mentions, code blocks, emoji
+- **Discord JSON exports** (e.g. DiscordChatExporter)
+- **WhatsApp text exports** — `[DD/MM/YY, HH:MM] Name: text` and `DD/MM/YY, HH:MM - Name: text`
+
+**Meeting transcripts**
+- **WebVTT** — including `<v Speaker>...</v>` voice tags (closing tag optional)
+- **SRT** — with optional `Name:` speaker prefixes
+- **Plain text** — any `Name: said this` format. Smart inline splitting handles PDFs that lose line breaks (titles like `Dr.` are preserved correctly).
+
+**Documents**
+- **PDF** — via [unpdf](https://github.com/unjs/unpdf) (serverless-friendly)
+- **DOCX** (Word) — via [mammoth](https://github.com/mwilliamson/mammoth.js)
+- **RTF** — built-in stripper
+- **Markdown** — strips syntax to clean prose
+- **HTML files** — direct upload, not just URLs
+- **URLs** — fetches and strips to text
+
+**Audio & video**
+- **MP3, WAV, M4A, MP4, WebM, OGG, FLAC** — transcribed via OpenAI Whisper (requires an OpenAI key in Settings)
+
+## Quick start
 
 ```bash
+git clone <this repo>
+cd clawcast
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000>, click **Settings**, paste your API keys, and start generating.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Required keys
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- One LLM key — **Anthropic** (`sk-ant-...`) or **OpenAI** (`sk-...`)
+- **ElevenLabs** (`sk_...`) for TTS — [get one here](https://elevenlabs.io/app/settings/api-keys)
+- **OpenAI** key for Whisper — only required when uploading audio/video. If your LLM provider is already OpenAI, that same key is reused automatically.
 
-## Learn More
+Keys are stored in `localStorage` and sent server-side per request only, never persisted on the server.
 
-To learn more about Next.js, take a look at the following resources:
+## Deploy
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Vercel-ready. No env vars required:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+vercel deploy
+```
 
-## Deploy on Vercel
+## Project layout
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+app/
+  page.tsx              # Main UI
+  layout.tsx
+  globals.css
+  api/
+    parse/route.ts      # Detect format + extract speakers
+    script/route.ts     # LLM script director
+    tts/route.ts        # ElevenLabs synthesis + MP3 stitching
+components/
+  KeyManager.tsx        # BYO API key drawer
+  Casting.tsx           # Speaker → voice assignment
+  Player.tsx            # Audio + show notes + script reveal
+lib/
+  parsers/              # Slack / Discord / WhatsApp / VTT / SRT / plain
+  extractors/           # PDF / DOCX / RTF / Markdown / HTML / audio (Whisper)
+  prompts.ts            # The script director prompts (the magic)
+  llm.ts                # Anthropic + OpenAI clients
+  tts.ts                # ElevenLabs client + MP3 concat
+  voices.ts             # Curated voice list + auto-cast logic
+  types.ts
+public/
+  samples/              # Sample Slack export + meeting VTT
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## How it works
+
+1. **Parse** — auto-detect input format, extract `{speaker, text}` utterances
+2. **Cast** — assign each detected speaker a distinct ElevenLabs voice (auto-cast on first parse, editable in UI)
+3. **Script** — single LLM call with a mode-specific director prompt that returns structured JSON
+4. **Synthesize** — per-line ElevenLabs synthesis, then MP3 concatenation server-side
+5. **Play** — blob URL in the browser, download as MP3
+
+## What's missing (intentionally)
+
+- No voice cloning (yet — coming next; bring a 6-second sample)
+- No music beds or transitions
+- No multi-language UI (the LLM handles any language the transcript is in)
+- No accounts, billing, dashboards, or quotas
+
+## License
+
+MIT
