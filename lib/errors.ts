@@ -22,9 +22,13 @@ export type ClassifiedError = {
 const CREDIT_PATTERNS: RegExp[] = [
   /\binsufficient[\s_-]?(funds|credits?|balance|quota)\b/i,
   /\bquota[\s_-]?exceeded\b/i,
-  /\b(out\s+of|no\s+more)\s+(credits?|funds|balance)\b/i,
+  /\bexceeds?\s+(your\s+)?(quota|usage|limit|monthly)/i,
+  /\bcredits?\s+remaining\b/i,
+  /\bcredits?\s+(are\s+)?required\s+for/i,
+  /\b(usage|monthly|daily|hourly)\s+limit\s+(exceeded|reached)\b/i,
+  /\b(out\s+of|no\s+more)\s+(credits?|funds|balance|tokens?)\b/i,
   /\bpayment[\s_-]?required\b/i,
-  /\bsubscription[\s_-]?(expired|inactive|cancelled)\b/i,
+  /\bsubscription[\s_-]?(expired|inactive|cancelled|required)\b/i,
   /\bcredit[\s_-]?balance[\s_-]?too[\s_-]?low\b/i,
   /\bfree[\s_-]?(quota|tier)[\s_-]?(exceeded|exhausted)\b/i,
   /\bcharacter[\s_-]?limit[\s_-]?reached\b/i,
@@ -32,6 +36,7 @@ const CREDIT_PATTERNS: RegExp[] = [
   /\bplan[\s_-]?limit/i,
   /\bbilling[\s_-]?(issue|problem|failed)\b/i,
   /\baccount[\s_-]?(suspended|disabled)\b/i,
+  /\bquota_exceeded\b/i,
 ];
 
 const AUTH_PATTERNS: RegExp[] = [
