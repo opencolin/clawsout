@@ -1,64 +1,32 @@
-import type { LLMProvider } from "./types";
+import { generateText } from "ai";
+import { gateway } from "@ai-sdk/gateway";
 
-export const LLM_MODELS: Record<LLMProvider, { id: string; label: string }[]> = {
-  anthropic: [
-    { id: "claude-opus-4-5", label: "Claude Opus 4.5 (highest quality)" },
-    { id: "claude-sonnet-4-5", label: "Claude Sonnet 4.5 (balanced)" },
-    { id: "claude-haiku-4-5", label: "Claude Haiku 4.5 (fast)" },
-  ],
-  openai: [
-    { id: "gpt-5", label: "GPT-5 (highest quality)" },
-    { id: "gpt-5-mini", label: "GPT-5 mini (balanced)" },
-    { id: "gpt-4o", label: "GPT-4o (legacy)" },
-  ],
+export type GatewayModel = {
+  id: string;
+  label: string;
 };
 
+export const GATEWAY_MODELS: GatewayModel[] = [
+  { id: "anthropic/claude-opus-4-5", label: "Claude Opus 4.5 — highest quality" },
+  { id: "anthropic/claude-sonnet-4-5", label: "Claude Sonnet 4.5 — balanced" },
+  { id: "anthropic/claude-haiku-4-5", label: "Claude Haiku 4.5 — fast" },
+  { id: "openai/gpt-5", label: "GPT-5" },
+  { id: "openai/gpt-5-mini", label: "GPT-5 mini — fast" },
+  { id: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+];
+
+export const DEFAULT_MODEL = "anthropic/claude-sonnet-4-5";
+
 export async function callLLM(opts: {
-  provider: LLMProvider;
   model: string;
-  apiKey: string;
   prompt: string;
 }): Promise<string> {
-  if (opts.provider === "anthropic") {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": opts.apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: opts.model,
-        max_tokens: 8000,
-        messages: [{ role: "user", content: opts.prompt }],
-      }),
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Anthropic ${res.status}: ${errText.slice(0, 300)}`);
-    }
-    const data = await res.json();
-    return data.content?.[0]?.text ?? "";
-  }
-
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${opts.apiKey}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: opts.model,
-      messages: [{ role: "user", content: opts.prompt }],
-      response_format: { type: "json_object" },
-    }),
+  const { text } = await generateText({
+    model: gateway(opts.model),
+    prompt: opts.prompt,
+    maxOutputTokens: 8000,
   });
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`OpenAI ${res.status}: ${errText.slice(0, 300)}`);
-  }
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "";
+  return text;
 }
 
 export function extractJson(text: string): unknown {

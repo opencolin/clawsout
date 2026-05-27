@@ -31,14 +31,14 @@ export async function POST(req: NextRequest) {
       }
 
       if (isAudioFile(file.name)) {
-        const whisperKey = (form.get("whisperKey") as string) || "";
+        const whisperKey = process.env.OPENAI_API_KEY;
         if (!whisperKey) {
           return NextResponse.json(
             {
               error:
-                "Audio transcription requires an OpenAI API key (Whisper). Add it in Settings.",
+                "Audio transcription requires OPENAI_API_KEY on the server. Add it in Vercel project env vars.",
             },
-            { status: 400 },
+            { status: 500 },
           );
         }
         const language = (form.get("language") as string) || undefined;

@@ -48,16 +48,12 @@ export type Script = {
   lines: ScriptLine[];
 };
 
-export type LLMProvider = "anthropic" | "openai";
-
 export type GenerateRequest = {
   transcript: Transcript;
   mode: ProductionMode;
   guide?: string;
+  clawsOut: number;
   cast: SpeakerCast;
   narratorVoiceId: string;
-  llmProvider: LLMProvider;
-  llmModel: string;
-  llmKey: string;
-  ttsKey: string;
+  model: string;
 };

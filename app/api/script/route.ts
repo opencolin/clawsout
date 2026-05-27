@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scriptPrompt } from "@/lib/prompts";
-import { callLLM, extractJson } from "@/lib/llm";
-import type { ProductionMode, Script, Transcript, LLMProvider } from "@/lib/types";
+import { callLLM, extractJson, DEFAULT_MODEL } from "@/lib/llm";
+import type { ProductionMode, Script, Transcript } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -11,17 +11,12 @@ type Body = {
   mode: ProductionMode;
   guide?: string;
   clawsOut?: number;
-  provider: LLMProvider;
-  model: string;
-  apiKey: string;
+  model?: string;
 };
 
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as Body;
-    if (!body.apiKey) {
-      return NextResponse.json({ error: "missing LLM API key" }, { status: 400 });
-    }
 
     const clawsOut = Math.max(0, Math.min(10, body.clawsOut ?? 3));
     const prompt = scriptPrompt(
@@ -33,9 +28,7 @@ export async function POST(req: NextRequest) {
     );
 
     const raw = await callLLM({
-      provider: body.provider,
-      model: body.model,
-      apiKey: body.apiKey,
+      model: body.model || DEFAULT_MODEL,
       prompt,
     });
 

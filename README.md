@@ -65,13 +65,19 @@ npm run dev
 
 Open <http://localhost:3000>, click **Settings**, paste your API keys, and start generating.
 
-### Required keys
+### Server env vars (production)
 
-- One LLM key — **Anthropic** (`sk-ant-...`) or **OpenAI** (`sk-...`)
-- **ElevenLabs** (`sk_...`) for TTS — [get one here](https://elevenlabs.io/app/settings/api-keys)
-- **OpenAI** key for Whisper — only required when uploading audio/video. If your LLM provider is already OpenAI, that same key is reused automatically.
+Set these in your Vercel project's Environment Variables panel — visitors don't need any keys of their own.
 
-Keys are stored in `localStorage` and sent server-side per request only, never persisted on the server.
+| Env var | Required for | Notes |
+|---|---|---|
+| `AI_GATEWAY_API_KEY` | Script generation | Auto-injected via OIDC on Vercel; only needed for local dev or non-Vercel hosting |
+| `ELEVENLABS_API_KEY` | Voice synthesis | `sk_...` from [elevenlabs.io](https://elevenlabs.io/app/settings/api-keys) |
+| `OPENAI_API_KEY` | Audio/video transcription | Only needed if you accept audio uploads |
+
+For local dev, run `vercel env pull .env.development.local` to grab a short-lived OIDC token plus your other configured vars.
+
+> **Heads up:** with server-side keys, every visitor's generation bills your accounts. Set spend caps in Vercel AI Gateway, ElevenLabs, and OpenAI before traffic grows.
 
 ## Deploy
 

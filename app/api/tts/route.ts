@@ -9,15 +9,22 @@ type Body = {
   lines: { speaker: string; text: string }[];
   cast: Record<string, string>;
   narratorVoiceId: string;
-  apiKey: string;
 };
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as Body;
-    if (!body.apiKey) {
-      return NextResponse.json({ error: "missing ElevenLabs API key" }, { status: 400 });
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        {
+          error:
+            "ELEVENLABS_API_KEY not configured on the server. Add it in Vercel project env vars.",
+        },
+        { status: 500 },
+      );
     }
+
+    const body = (await req.json()) as Body;
     if (!body.lines?.length) {
       return NextResponse.json({ error: "no lines to synthesize" }, { status: 400 });
     }
@@ -26,7 +33,7 @@ export async function POST(req: NextRequest) {
     for (const line of body.lines) {
       const voiceId = resolveVoice(line.speaker, body.cast, body.narratorVoiceId);
       const audio = await synthesizeLine({
-        apiKey: body.apiKey,
+        apiKey,
         voiceId,
         text: line.text,
       });

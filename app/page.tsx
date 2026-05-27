@@ -8,11 +8,7 @@ import type {
   Transcript,
 } from "@/lib/types";
 import { autoCast, DEFAULT_NARRATOR_VOICE } from "@/lib/voices";
-import KeyManager, {
-  loadKeys,
-  effectiveWhisperKey,
-  type Keys,
-} from "@/components/KeyManager";
+import { GATEWAY_MODELS, DEFAULT_MODEL } from "@/lib/llm";
 import Casting from "@/components/Casting";
 import Player from "@/components/Player";
 
@@ -78,8 +74,6 @@ function clawsLabel(level: number): string {
 }
 
 export default function Home() {
-  const [keys, setKeys] = useState<Keys | null>(null);
-  const [keysOpen, setKeysOpen] = useState(false);
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -90,15 +84,12 @@ export default function Home() {
   const [mode, setMode] = useState<ProductionMode>("reenactment");
   const [guide, setGuide] = useState("");
   const [clawsOut, setClawsOut] = useState(3);
+  const [model, setModel] = useState(DEFAULT_MODEL);
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [script, setScript] = useState<Script | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioBlobUrlRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    setKeys(loadKeys());
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -132,23 +123,9 @@ export default function Home() {
     try {
       let res: Response;
       if (file) {
-        const isAudio = AUDIO_EXT.has(fileExt(file.name));
-        if (isAudio) {
-          const wKey = keys ? effectiveWhisperKey(keys) : "";
-          if (!wKey) {
-            throw new Error(
-              "Audio transcription needs an OpenAI key. Add one in Settings.",
-            );
-          }
-          const form = new FormData();
-          form.append("file", file);
-          form.append("whisperKey", wKey);
-          res = await fetch("/api/parse", { method: "POST", body: form });
-        } else {
-          const form = new FormData();
-          form.append("file", file);
-          res = await fetch("/api/parse", { method: "POST", body: form });
-        }
+        const form = new FormData();
+        form.append("file", file);
+        res = await fetch("/api/parse", { method: "POST", body: form });
       } else {
         res = await fetch("/api/parse", {
           method: "POST",
@@ -168,12 +145,7 @@ export default function Home() {
   };
 
   const generate = async () => {
-    if (!transcript || !keys) return;
-    if (!keys.llmKey || !keys.ttsKey) {
-      setError("Missing API keys — click Settings.");
-      setKeysOpen(true);
-      return;
-    }
+    if (!transcript) return;
     setError(null);
     setScript(null);
     setAudioUrl(null);
@@ -192,9 +164,7 @@ export default function Home() {
           mode,
           guide: guide.trim() || undefined,
           clawsOut,
-          provider: keys.llmProvider,
-          model: keys.llmModel,
-          apiKey: keys.llmKey,
+          model,
         }),
       });
       const sData = await sRes.json();
@@ -214,7 +184,6 @@ export default function Home() {
           lines: newScript.lines,
           cast,
           narratorVoiceId: narrator,
-          apiKey: keys.ttsKey,
         }),
       });
       if (!tRes.ok) {
@@ -257,292 +226,291 @@ export default function Home() {
     phase === "parsing" || phase === "scripting" || phase === "synthesizing";
 
   return (
-    <>
-      <KeyManager
-        open={keysOpen}
-        onClose={() => setKeysOpen(false)}
-        onSaved={(k) => setKeys(k)}
-      />
+    <main className="flex-1 w-full max-w-3xl mx-auto px-6 py-10 sm:py-16 space-y-10">
+      <header>
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight flex items-center gap-2">
+          <span className="text-emerald-400">claws</span>out
+        </h1>
+        <p className="text-sm text-zinc-400 mt-1">
+          Turn any transcript into a realistic podcast — with a comedy dial that goes claws out.
+        </p>
+      </header>
 
-      <main className="flex-1 w-full max-w-3xl mx-auto px-6 py-10 sm:py-16 space-y-10">
-        <header className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight flex items-center gap-2">
-              <span className="text-emerald-400">claws</span>out
-            </h1>
-            <p className="text-sm text-zinc-400 mt-1">
-              Turn any transcript into a realistic podcast — with a comedy dial that goes claws out.
-            </p>
-          </div>
-          <button
-            onClick={() => setKeysOpen(true)}
-            className="text-sm px-3 py-1.5 border border-zinc-800 hover:border-zinc-600 rounded text-zinc-300"
-          >
-            Settings
-          </button>
-        </header>
+      {!transcript && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-medium">1. Drop in a transcript</h2>
+          <p className="text-sm text-zinc-400">
+            Paste text, drop a file, or paste a URL. Supports{" "}
+            <span className="text-zinc-300">
+              PDF, DOCX, RTF, MD, HTML, TXT, VTT, SRT, JSON
+            </span>{" "}
+            (Slack/Discord), WhatsApp chat exports, and{" "}
+            <span className="text-zinc-300">MP3/WAV/M4A/MP4</span> audio &amp;
+            video via Whisper.
+          </p>
 
-        {!transcript && (
-          <section className="space-y-4">
-            <h2 className="text-lg font-medium">1. Drop in a transcript</h2>
-            <p className="text-sm text-zinc-400">
-              Paste text, drop a file, or paste a URL. Supports{" "}
-              <span className="text-zinc-300">
-                PDF, DOCX, RTF, MD, HTML, TXT, VTT, SRT, JSON
-              </span>{" "}
-              (Slack/Discord), WhatsApp chat exports, and{" "}
-              <span className="text-zinc-300">
-                MP3/WAV/M4A/MP4
-              </span>{" "}
-              audio &amp; video via Whisper.
-            </p>
-
-            {file ? (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded bg-emerald-500/15 text-emerald-300 flex items-center justify-center text-xs font-mono uppercase shrink-0">
-                    {fileExt(file.name) || "file"}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm truncate">{file.name}</div>
-                    <div className="text-xs text-zinc-500">
-                      {fmtBytes(file.size)}
-                      {AUDIO_EXT.has(fileExt(file.name)) &&
-                        " · will transcribe via Whisper"}
-                    </div>
+          {file ? (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded bg-emerald-500/15 text-emerald-300 flex items-center justify-center text-xs font-mono uppercase shrink-0">
+                  {fileExt(file.name) || "file"}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm truncate">{file.name}</div>
+                  <div className="text-xs text-zinc-500">
+                    {fmtBytes(file.size)}
+                    {AUDIO_EXT.has(fileExt(file.name)) &&
+                      " · will transcribe via Whisper"}
                   </div>
                 </div>
-                <button
-                  onClick={() => setFile(null)}
-                  className="text-zinc-400 hover:text-white text-sm"
-                  aria-label="remove file"
-                >
-                  ✕
-                </button>
               </div>
-            ) : (
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragging(true);
-                }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={onDrop}
-                placeholder={`Paste a transcript here, or drop a file.\n\nSarah: I think we should ship this Friday.\nAdam: That feels aggressive — QA still has the regression list to work through.\nSarah: We can hotfix anything critical after.`}
-                className={`w-full min-h-48 bg-zinc-900 border rounded-lg p-4 text-sm font-mono focus:outline-none placeholder:text-zinc-600 transition-colors ${
-                  dragging
-                    ? "border-emerald-500 bg-emerald-500/5"
-                    : "border-zinc-800 focus:border-emerald-500"
-                }`}
-              />
-            )}
-
-            <div className="flex flex-wrap gap-2 items-center text-sm">
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => {
-                  setUrl(e.target.value);
-                  if (e.target.value) setFile(null);
-                }}
-                placeholder="…or paste a URL"
-                className="flex-1 min-w-0 bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500"
-              />
-              <label className="px-3 py-1.5 border border-zinc-800 hover:border-zinc-600 rounded text-zinc-300 cursor-pointer">
-                Upload file
-                <input
-                  type="file"
-                  accept={ACCEPT_ATTR}
-                  onChange={(e) =>
-                    e.target.files?.[0] && onFile(e.target.files[0])
-                  }
-                  className="hidden"
-                />
-              </label>
               <button
-                onClick={loadSample}
-                className="px-3 py-1.5 border border-zinc-800 hover:border-zinc-600 rounded text-zinc-300"
+                onClick={() => setFile(null)}
+                className="text-zinc-400 hover:text-white text-sm"
+                aria-label="remove file"
               >
-                Load sample
+                ✕
               </button>
             </div>
-
-            <button
-              disabled={!text.trim() && !url.trim() && !file}
-              onClick={parse}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-800 disabled:text-zinc-500 text-black font-medium rounded-lg py-3"
-            >
-              {phase === "parsing"
-                ? file && AUDIO_EXT.has(fileExt(file.name))
-                  ? "Transcribing audio…"
-                  : "Parsing…"
-                : "Parse transcript →"}
-            </button>
-          </section>
-        )}
-
-        {transcript && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium">
-                2. Cast voices
-                <span className="ml-2 text-sm text-zinc-500">
-                  ({transcript.speakers.length} speaker
-                  {transcript.speakers.length === 1 ? "" : "s"} ·{" "}
-                  {transcript.utterances.length} utterances · source:{" "}
-                  {transcript.source})
-                </span>
-              </h2>
-              <button
-                onClick={reset}
-                className="text-xs text-zinc-400 hover:text-white underline"
-              >
-                start over
-              </button>
-            </div>
-
-            <Casting
-              speakers={transcript.speakers}
-              cast={cast}
-              narratorVoiceId={narrator}
-              onCastChange={setCast}
-              onNarratorChange={setNarrator}
+          ) : (
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDrop}
+              placeholder={`Paste a transcript here, or drop a file.\n\nSarah: I think we should ship this Friday.\nAdam: That feels aggressive — QA still has the regression list to work through.\nSarah: We can hotfix anything critical after.`}
+              className={`w-full min-h-48 bg-zinc-900 border rounded-lg p-4 text-sm font-mono focus:outline-none placeholder:text-zinc-600 transition-colors ${
+                dragging
+                  ? "border-emerald-500 bg-emerald-500/5"
+                  : "border-zinc-800 focus:border-emerald-500"
+              }`}
             />
-          </section>
-        )}
+          )}
 
-        {transcript && (
-          <section className="space-y-4">
-            <h2 className="text-lg font-medium">3. Pick a format</h2>
-            <div className="grid sm:grid-cols-3 gap-3">
-              {MODES.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setMode(m.id)}
-                  className={`text-left p-3 rounded-lg border transition-colors ${
-                    mode === m.id
-                      ? "border-emerald-500 bg-emerald-500/10"
-                      : "border-zinc-800 hover:border-zinc-600"
+          <div className="flex flex-wrap gap-2 items-center text-sm">
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                if (e.target.value) setFile(null);
+              }}
+              placeholder="…or paste a URL"
+              className="flex-1 min-w-0 bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500"
+            />
+            <label className="px-3 py-1.5 border border-zinc-800 hover:border-zinc-600 rounded text-zinc-300 cursor-pointer">
+              Upload file
+              <input
+                type="file"
+                accept={ACCEPT_ATTR}
+                onChange={(e) =>
+                  e.target.files?.[0] && onFile(e.target.files[0])
+                }
+                className="hidden"
+              />
+            </label>
+            <button
+              onClick={loadSample}
+              className="px-3 py-1.5 border border-zinc-800 hover:border-zinc-600 rounded text-zinc-300"
+            >
+              Load sample
+            </button>
+          </div>
+
+          <button
+            disabled={!text.trim() && !url.trim() && !file}
+            onClick={parse}
+            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-800 disabled:text-zinc-500 text-black font-medium rounded-lg py-3"
+          >
+            {phase === "parsing"
+              ? file && AUDIO_EXT.has(fileExt(file.name))
+                ? "Transcribing audio…"
+                : "Parsing…"
+              : "Parse transcript →"}
+          </button>
+        </section>
+      )}
+
+      {transcript && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium">
+              2. Cast voices
+              <span className="ml-2 text-sm text-zinc-500">
+                ({transcript.speakers.length} speaker
+                {transcript.speakers.length === 1 ? "" : "s"} ·{" "}
+                {transcript.utterances.length} utterances · source:{" "}
+                {transcript.source})
+              </span>
+            </h2>
+            <button
+              onClick={reset}
+              className="text-xs text-zinc-400 hover:text-white underline"
+            >
+              start over
+            </button>
+          </div>
+
+          <Casting
+            speakers={transcript.speakers}
+            cast={cast}
+            narratorVoiceId={narrator}
+            onCastChange={setCast}
+            onNarratorChange={setNarrator}
+          />
+        </section>
+      )}
+
+      {transcript && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-medium">3. Pick a format</h2>
+          <div className="grid sm:grid-cols-3 gap-3">
+            {MODES.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setMode(m.id)}
+                className={`text-left p-3 rounded-lg border transition-colors ${
+                  mode === m.id
+                    ? "border-emerald-500 bg-emerald-500/10"
+                    : "border-zinc-800 hover:border-zinc-600"
+                }`}
+              >
+                <div className="font-medium text-sm mb-1">{m.label}</div>
+                <div className="text-xs text-zinc-400 leading-snug">
+                  {m.desc}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <textarea
+            value={guide}
+            onChange={(e) => setGuide(e.target.value)}
+            placeholder="Optional director's note: 'Focus on the tension around the launch date' or 'Keep it light, lots of laughter'"
+            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-sm focus:outline-none focus:border-emerald-500 placeholder:text-zinc-600"
+            rows={2}
+          />
+
+          <div className="space-y-2 pt-4 border-t border-zinc-800">
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <label htmlFor="claws" className="text-sm font-medium text-zinc-200">
+                  Claws out
+                </label>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Comedy intensity — professional to roast podcast.
+                </p>
+              </div>
+              <div className="text-right shrink-0">
+                <div
+                  className={`text-2xl font-bold tabular-nums leading-none ${
+                    clawsOut <= 3
+                      ? "text-emerald-400"
+                      : clawsOut <= 6
+                        ? "text-amber-400"
+                        : clawsOut <= 8
+                          ? "text-orange-400"
+                          : "text-red-500"
                   }`}
                 >
-                  <div className="font-medium text-sm mb-1">{m.label}</div>
-                  <div className="text-xs text-zinc-400 leading-snug">
-                    {m.desc}
-                  </div>
-                </button>
-              ))}
+                  {clawsOut}
+                </div>
+                <div className="text-[10px] uppercase tracking-wider text-zinc-400 mt-1">
+                  {clawsLabel(clawsOut)}
+                </div>
+              </div>
             </div>
-
-            <textarea
-              value={guide}
-              onChange={(e) => setGuide(e.target.value)}
-              placeholder="Optional director's note: 'Focus on the tension around the launch date' or 'Keep it light, lots of laughter'"
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-sm focus:outline-none focus:border-emerald-500 placeholder:text-zinc-600"
-              rows={2}
+            <input
+              id="claws"
+              type="range"
+              min={0}
+              max={10}
+              step={1}
+              value={clawsOut}
+              onChange={(e) => setClawsOut(Number(e.target.value))}
+              className="claws-slider w-full h-2 rounded-full appearance-none cursor-pointer"
+              style={{
+                background:
+                  "linear-gradient(to right, #10b981 0%, #84cc16 30%, #facc15 50%, #f97316 75%, #ef4444 100%)",
+              }}
+              aria-label="claws out comedy level"
             />
-
-            <div className="space-y-2 pt-4 border-t border-zinc-800">
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <label htmlFor="claws" className="text-sm font-medium text-zinc-200">
-                    Claws out
-                  </label>
-                  <p className="text-xs text-zinc-500 mt-0.5">
-                    Comedy intensity — professional to roast podcast.
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <div
-                    className={`text-2xl font-bold tabular-nums leading-none ${
-                      clawsOut <= 3
-                        ? "text-emerald-400"
-                        : clawsOut <= 6
-                          ? "text-amber-400"
-                          : clawsOut <= 8
-                            ? "text-orange-400"
-                            : "text-red-500"
-                    }`}
-                  >
-                    {clawsOut}
-                  </div>
-                  <div className="text-[10px] uppercase tracking-wider text-zinc-400 mt-1">
-                    {clawsLabel(clawsOut)}
-                  </div>
-                </div>
-              </div>
-              <input
-                id="claws"
-                type="range"
-                min={0}
-                max={10}
-                step={1}
-                value={clawsOut}
-                onChange={(e) => setClawsOut(Number(e.target.value))}
-                className="claws-slider w-full h-2 rounded-full appearance-none cursor-pointer"
-                style={{
-                  background:
-                    "linear-gradient(to right, #10b981 0%, #84cc16 30%, #facc15 50%, #f97316 75%, #ef4444 100%)",
-                }}
-                aria-label="claws out comedy level"
-              />
-              <div className="flex justify-between text-[10px] text-zinc-600 px-0.5 select-none">
-                <span>professional</span>
-                <span>witty</span>
-                <span>claws out</span>
-              </div>
+            <div className="flex justify-between text-[10px] text-zinc-600 px-0.5 select-none">
+              <span>professional</span>
+              <span>witty</span>
+              <span>claws out</span>
             </div>
-          </section>
-        )}
-
-        {transcript && (
-          <section className="space-y-3">
-            <button
-              disabled={busy}
-              onClick={generate}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-800 disabled:text-zinc-500 text-black font-medium rounded-lg py-3 text-lg"
-            >
-              {busy
-                ? PHASE_LABEL[phase as Exclude<Phase, "idle">]
-                : "Generate podcast"}
-            </button>
-            {busy && (
-              <div className="flex items-center gap-2 text-sm text-zinc-400 justify-center">
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>
-                  {phase === "scripting" &&
-                    "This usually takes 15-45 seconds depending on the LLM."}
-                  {phase === "synthesizing" &&
-                    `Synthesizing ${script?.lines.length ?? 0} lines via ElevenLabs — about 1-3 minutes.`}
-                </span>
-              </div>
-            )}
-          </section>
-        )}
-
-        {error && (
-          <div className="bg-red-900/30 border border-red-700 rounded-lg p-3 text-sm text-red-200">
-            {error}
           </div>
-        )}
 
-        {audioUrl && script && (
-          <section className="space-y-4 border-t border-zinc-800 pt-8">
-            <Player
-              title={script.title}
-              showNotes={script.showNotes}
-              audioUrl={audioUrl}
-              lines={script.lines}
-            />
-          </section>
-        )}
+          <div className="flex items-center justify-between gap-3 pt-2">
+            <label htmlFor="model" className="text-xs text-zinc-500">
+              Script model
+            </label>
+            <select
+              id="model"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-200 max-w-full"
+            >
+              {GATEWAY_MODELS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+      )}
 
-        <footer className="pt-12 pb-4 text-xs text-zinc-600">
-          BYO API keys — they stay in your browser. Built with Next.js,
-          ElevenLabs, and your favorite LLM.
-        </footer>
-      </main>
-    </>
+      {transcript && (
+        <section className="space-y-3">
+          <button
+            disabled={busy}
+            onClick={generate}
+            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-800 disabled:text-zinc-500 text-black font-medium rounded-lg py-3 text-lg"
+          >
+            {busy
+              ? PHASE_LABEL[phase as Exclude<Phase, "idle">]
+              : "Generate podcast"}
+          </button>
+          {busy && (
+            <div className="flex items-center gap-2 text-sm text-zinc-400 justify-center">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>
+                {phase === "scripting" &&
+                  "This usually takes 15-45 seconds depending on the model."}
+                {phase === "synthesizing" &&
+                  `Synthesizing ${script?.lines.length ?? 0} lines via ElevenLabs — about 1-3 minutes.`}
+              </span>
+            </div>
+          )}
+        </section>
+      )}
+
+      {error && (
+        <div className="bg-red-900/30 border border-red-700 rounded-lg p-3 text-sm text-red-200">
+          {error}
+        </div>
+      )}
+
+      {audioUrl && script && (
+        <section className="space-y-4 border-t border-zinc-800 pt-8">
+          <Player
+            title={script.title}
+            showNotes={script.showNotes}
+            audioUrl={audioUrl}
+            lines={script.lines}
+          />
+        </section>
+      )}
+
+      <footer className="pt-12 pb-4 text-xs text-zinc-600">
+        Powered by Vercel AI Gateway + ElevenLabs. No accounts, no logging.
+      </footer>
+    </main>
   );
 }
