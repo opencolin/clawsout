@@ -2,9 +2,11 @@
 
 Turn any transcript into a realistic multi-voice podcast — with a comedy dial that goes claws out.
 
+**Live at <https://clawsout.ai>** · [Repo](https://github.com/opencolin/clawsout)
+
 Paste a Slack export, a meeting `.vtt`, a PDF, a Word doc, a URL, or any audio file. clawsout detects the speakers, casts each one a distinct voice, writes a podcast script in one of three formats at the comedy intensity you want, and synthesizes audio you can play or download.
 
-No accounts. No payment pages. Bring your own API keys — they stay in your browser.
+No accounts. No payment pages. Bring your own API keys — they stay in your browser. Pushes to `main` auto-deploy to production via Vercel.
 
 ## Three production modes
 
