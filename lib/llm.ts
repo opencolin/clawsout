@@ -204,6 +204,9 @@ export async function* streamScript(opts: {
       schema: ScriptSchema,
       prompt: opts.prompt,
       maxOutputTokens: 8000,
+      temperature: 0.9,
+      frequencyPenalty: 0.3,
+      presencePenalty: 0.3,
     });
 
     for await (const partial of result.partialObjectStream) {
