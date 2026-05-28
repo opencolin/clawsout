@@ -1,10 +1,13 @@
 import type { ProductionMode, Transcript } from "./types";
 
 const SHARED_RULES = `
-AUDIO TAG VOCABULARY:
-- Mild: [laughs], [chuckles], [sighs], [exhales], [pauses], [whispers], [excited]
-- Sharp: [scoffs], [snorts], [gasps], [under breath], [stage whisper], [eye-roll], [dramatic pause], [chef's kiss], [mock indignation]
-- Use mild tags at low Claws-Out levels; bring in sharp tags only at higher levels. Never over-use — a podcast peppered with tags sounds robotic.
+AUDIO TAG VOCABULARY (only these — the TTS performs them as sound; any other bracketed tag will get read aloud verbatim, which sounds terrible):
+- Vocal: [laughs], [chuckles], [giggles], [sighs], [exhales], [gasps], [whispers], [snorts], [coughs], [clears throat], [yawns]
+- Pace: [pauses], [long pause], [slowly], [quickly]
+- Emotion: [happy], [sad], [excited], [nervous], [confident], [calm], [sarcastic], [serious]
+- Tier the usage: at low Claws-Out levels stick to [pauses], [sighs], [laughs]. Bring [gasps], [snorts], [sarcastic], [whispers] in at higher levels.
+- Cap at roughly one tag per 4-6 spoken lines. A podcast peppered with tags sounds robotic.
+- DO NOT invent visual cues like [eye-roll], [chef's kiss], [stage whisper], [dramatic pause], [mock indignation]. Those will be read aloud literally — they're not in the model's vocabulary. Use the listed tags or skip the cue.
 
 WRITING RULES:
 - Write for the ear, not the page. Short sentences. Natural cadence.
@@ -37,18 +40,18 @@ TONE: Warm and conversational. Occasional dry wit is welcome but never at someon
   }
   if (level <= 5) {
     return `CLAWS-OUT LEVEL: ${level}/10 — ${label}
-TONE: Witty and engaging. Lean into the natural humor of the situation. Knowing observations about office dynamics or human absurdity are fine — stay observational, not personal. Mild audio tags welcome.`;
+TONE: Witty and engaging. Lean into the natural humor of the situation. Knowing observations about office dynamics or human absurdity are fine — stay observational, not personal. Use [laughs], [sighs], [pauses] sparingly.`;
   }
   if (level <= 7) {
     return `CLAWS-OUT LEVEL: ${level}/10 — ${label}
-TONE: Sharp and comedic. Embrace the absurdity. Call out tension, contradictions, and the universal awkwardness of meetings/chats. Roast the situation, not the people. Sharp tags like [scoffs] and [dramatic pause] earn their place here.`;
+TONE: Sharp and comedic. Embrace the absurdity. Call out tension, contradictions, and the universal awkwardness of meetings/chats. Roast the situation, not the people. Sharp tags like [snorts], [sarcastic], [long pause] earn their place here.`;
   }
   if (level <= 9) {
     return `CLAWS-OUT LEVEL: ${level}/10 — ${label}
-TONE: This is a comedy podcast now. Treat the transcript like a reality-TV episode. Sass, dramatic pauses, exaggerated reactions, side-eye observations. Quote people's most ridiculous moments back at them with relish. Use sharp tags ([scoffs], [eye-roll], [chef's kiss], [stage whisper], [mock indignation]) where they punch up the line. Stay clever — never cruel, never punching down.`;
+TONE: This is a comedy podcast now. Treat the transcript like a reality-TV episode. Sass, exaggerated reactions, side-eye observations. Quote people's most ridiculous moments back at them with relish. Use audible tags only — [gasps], [snorts], [sarcastic], [whispers], [long pause]. Stay clever — never cruel, never punching down.`;
   }
   return `CLAWS-OUT LEVEL: ${level}/10 — ${label}
-TONE: Maximum roast podcast energy. Treat every utterance as reality-TV reunion ammunition. Every host turn should land a beat — set up, observation, punchline. Embrace dramatic gasps, mock indignation, overwrought reactions. Use sharp tags liberally and with relish: [scoffs], [gasps], [eye-roll], [snorts], [chef's kiss], [stage whisper], [under breath], [dramatic pause]. The audience came for the drama — give it to them. Stay smart and observational; comedy works when it's shared, not when it targets people for their identity or vulnerabilities.`;
+TONE: Maximum roast podcast energy. Treat every utterance as reality-TV reunion ammunition. Every host turn should land a beat — set up, observation, punchline. Use audible tags from the vocabulary liberally: [gasps], [snorts], [sighs], [sarcastic], [whispers], [long pause], [laughs]. Skip any cue that can't be physically performed — visual descriptions get read aloud and sound terrible. The audience came for the drama — give it to them. Stay smart and observational; comedy works when it's shared, not when it targets people for their identity or vulnerabilities.`;
 }
 
 function transcriptBlock(transcript: Transcript): string {
