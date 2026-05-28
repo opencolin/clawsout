@@ -80,8 +80,14 @@ export const MODELS: ModelDef[] = [
   {
     id: "nebius/kimi-k2.5",
     provider: "nebius",
-    apiModel: "moonshot-ai/Kimi-K2.5",
+    apiModel: "moonshotai/Kimi-K2.5",
     label: "Kimi K2.5 — 262K context, via Nebius",
+  },
+  {
+    id: "nebius/kimi-k2-instruct",
+    provider: "nebius",
+    apiModel: "moonshotai/Kimi-K2-Instruct",
+    label: "Kimi K2 Instruct — 131K context, via Nebius",
   },
   {
     id: "nebius/deepseek-v3.2",
@@ -90,10 +96,16 @@ export const MODELS: ModelDef[] = [
     label: "DeepSeek V3.2 — 163K context, via Nebius",
   },
   {
-    id: "nebius/deepseek-r1",
+    id: "nebius/glm-5",
     provider: "nebius",
-    apiModel: "deepseek-ai/DeepSeek-R1-0528",
-    label: "DeepSeek R1 — reasoning, via Nebius",
+    apiModel: "zai-org/GLM-5",
+    label: "GLM 5 — Zhipu, via Nebius",
+  },
+  {
+    id: "nebius/qwen-3.5",
+    provider: "nebius",
+    apiModel: "Qwen/Qwen3.5-397B-A17B",
+    label: "Qwen 3.5 397B-A17B — via Nebius",
   },
 ];
 
