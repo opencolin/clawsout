@@ -17,6 +17,22 @@ WRITING RULES:
 - Numbers and acronyms: spell out anything that would sound odd ("two thousand twenty-five" not "2025" only if context demands).
 - Never invent facts not in the transcript. If a fact is needed for cohesion, attribute it to the speaker or skip it.
 - Comedy must be observational and shared — never punch down at individuals' identity, appearance, or vulnerabilities. Roast situations, choices, and contradictions; not people's worth.
+
+COLD OPEN — START WITH THE BIT, NOT A WELCOME:
+- The first line is the punchiest beat, quote, or image from the source. The audience meets the moment before they meet the show.
+- FORBIDDEN first-line patterns: "Okay so today...", "Today we have...", "Welcome back...", "In this episode...", "Today on the show...", "So I was reading...", "You're not gonna believe..."
+- GOOD example: "A guy spent his weekend writing a configuration file to stop his AI from thinking it was attacking itself. He's calling this Tuesday." (Drops you straight into the bit.)
+- BAD example: "Okay so today we have a man who built fourteen things." (Meta-narration — tell the audience what happened, not that you have a person to talk about.)
+
+DON'T RESTATE THE JOKE:
+- If a line lands a beat, the next line MOVES ON. Never paraphrase or generalize what was just said.
+- If you're about to write "and so really he's just...", "what he's essentially doing is...", "he's recreating X but with Y!" — delete that line. The previous beat already did the work. Trust the listener.
+- One observation per beat. Move to the next thing.
+
+CLOSE ON A LINE, NOT A LECTURE:
+- The final 30 seconds use the sharpest quote, image, or callback from the source — not a balanced wrap-up.
+- FORBIDDEN closing patterns: "He's not wrong that X, but Y...", "On one hand... on the other hand...", "The takeaway is...", "What this really shows is...", "I think it's this..."
+- Pick a side or end on a concrete image (the dog still wanting a walk, the dial tone, the unread message). Hedged closes kill the energy you built.
 `;
 
 export function clawsOutLabel(level: number): string {
@@ -90,9 +106,9 @@ ${SHARED_RULES}
 MODE: REENACTMENT
 - Keep the original speakers. Rewrite their lines for spoken delivery.
 - Use NARRATOR only for scene-setting between exchanges (~15-30 seconds of narration between segments).
-- Open with a 20-30 second NARRATOR cold-open hook: the most surprising or human moment first, then "Today on the show..."
+- NARRATOR opens with a 20-30 second cold-open per SHARED_RULES (start with the moment, no "Today on the show").
 - Compress 10x to 20x. Target output: 800-1500 spoken words (~5-10 minutes).
-- End with NARRATOR delivering the takeaway in one line.
+- End with NARRATOR landing one sharp line — sharpest quote, callback, or image. No hedging.
 
 Return ONLY valid JSON in this shape:
 {
@@ -117,12 +133,13 @@ ${guideBlock}
 ${SHARED_RULES}
 
 MODE: DOCUMENTARY
-- NARRATOR drives the arc: hook → context → escalation → turn → resolution → takeaway.
+- NARRATOR drives the arc: hook → context → escalation → turn → resolution → close.
 - Interleave 6-12 "clips" lifted (and lightly tightened) from the transcript — keep the speaker's voice authentic.
 - A clip is a single utterance from one speaker, 10-25 seconds of spoken text.
-- Open with a NARRATOR cold-open (30-45 seconds): pose a question or stake.
+- NARRATOR opens with a 30-45 second cold-open per SHARED_RULES — pose a question or stake without a meta-intro.
 - Target output: 1000-2000 spoken words (~7-13 minutes).
 - Each clip MUST attribute to a real speaker name from the transcript.
+- Close on a quote or image (see SHARED_RULES — no hedged takeaways).
 
 Return ONLY valid JSON in this shape:
 {
@@ -149,9 +166,10 @@ MODE: PODCAST
 - Two hosts in the studio walk the audience through what's in the source. They explain, react, and find the story.
 - They quote real participants by name when speakers exist in the source ("So at one point, ${speakerLabels[0] ?? "Sam"} says..."). For non-conversational sources (an article, a doc), they summarize the key claims and discuss them.
 - Natural back-and-forth: agree, disagree, build on each other. Hand off frequently — each host's turn is 1-3 sentences before the other picks up.
-- Open with HOST_A teasing the most interesting moment or claim. Avoid clickbait — make it real.
+- Balance the workload: neither host should always be the setup person or always the reactor. Have HOST_B occasionally drive a beat while HOST_A reacts.
+- HOST_A opens with a cold open per SHARED_RULES (the bit itself, never "Okay so today..."). HOST_B joins within ~20 seconds.
 - Target output: 1000-2000 spoken words (~7-13 minutes).
-- End with one host delivering a clean takeaway.
+- Close on a sharp line (see SHARED_RULES) — sharpest quote, callback, or image from the source. Never hedge with "he's not wrong" or "the takeaway is".
 
 Return ONLY valid JSON in this shape:
 {
