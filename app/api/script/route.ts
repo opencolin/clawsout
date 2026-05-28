@@ -9,6 +9,7 @@ import {
   type BYOKeys,
 } from "@/lib/llm";
 import type { ProductionMode, Transcript } from "@/lib/types";
+import type { ResearchFinding } from "@/lib/research";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -21,6 +22,7 @@ type Body = {
   model?: string;
   byoKeys?: BYOKeys;
   hostNames?: { a: string; b: string };
+  research?: ResearchFinding[];
 };
 
 const ENCODER = new TextEncoder();
@@ -45,6 +47,7 @@ export async function POST(req: NextRequest) {
     body.transcript.speakers,
     clawsOut,
     hostNames,
+    body.research ?? [],
   );
 
   const stream = new ReadableStream({

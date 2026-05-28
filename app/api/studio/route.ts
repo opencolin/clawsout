@@ -45,6 +45,19 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(project);
   } catch (err: unknown) {
+    const raw = err instanceof Error ? err.message : String(err);
+    if (/invalid_subscription|requires.*whitelist|contact our sales/i.test(raw)) {
+      return NextResponse.json(
+        {
+          error:
+            "ElevenLabs Studio API requires an enterprise tier and your account to be explicitly whitelisted. Contact ElevenLabs sales to enable it — until then, use the Download MP3 and Copy script buttons instead.",
+          code: "studio_not_enabled",
+          provider: "elevenlabs",
+          needsByoKey: false,
+        },
+        { status: 403 },
+      );
+    }
     const c = classifyError(err, "elevenlabs");
     return NextResponse.json(
       {

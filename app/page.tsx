@@ -27,12 +27,27 @@ import Player from "@/components/Player";
 import ByoKeyPrompt from "@/components/ByoKeyPrompt";
 import ScriptStream from "@/components/ScriptStream";
 import PostProduction from "@/components/PostProduction";
+import ResearchDisplay, {
+  EMPTY_RESEARCH_STATE,
+  type ResearchState,
+} from "@/components/ResearchDisplay";
 import type { UserVoice } from "@/lib/elevenlabs";
+import type {
+  ResearchAngle,
+  ResearchFinding,
+} from "@/lib/research";
 
-type Phase = "idle" | "parsing" | "scripting" | "synthesizing" | "done";
+type Phase =
+  | "idle"
+  | "parsing"
+  | "researching"
+  | "scripting"
+  | "synthesizing"
+  | "done";
 
 const PHASE_LABEL: Record<Exclude<Phase, "idle">, string> = {
   parsing: "Parsing transcript…",
+  researching: "Researching the topic…",
   scripting: "Writing the script…",
   synthesizing: "Recording voices…",
   done: "Done",
@@ -116,6 +131,106 @@ type ApiError = {
   needsByoKey?: boolean;
 };
 
+async function streamResearch(opts: {
+  transcript: Transcript;
+  model: string;
+  byoKeys?: BYOKeys;
+  onState: (next: ResearchState) => void;
+}): Promise<ResearchFinding[]> {
+  const source = opts.transcript.utterances
+    .map((u) => `${u.speaker}: ${u.text}`)
+    .join("\n");
+
+  const res = await fetch("/api/research", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      source,
+      model: opts.model,
+      byoKeys: opts.byoKeys,
+    }),
+  });
+  if (!res.ok || !res.body) {
+    throw new Error(`research failed (${res.status}) skippable`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let state: ResearchState = { ...EMPTY_RESEARCH_STATE };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const events = buffer.split("\n\n");
+    buffer = events.pop() ?? "";
+
+    for (const raw of events) {
+      const ev = raw.trim();
+      if (!ev) continue;
+      let eventName = "message";
+      let dataStr = "";
+      for (const line of ev.split("\n")) {
+        if (line.startsWith("event: ")) eventName = line.slice(7).trim();
+        else if (line.startsWith("data: ")) dataStr += line.slice(6);
+      }
+      if (!dataStr) continue;
+      let payload: unknown;
+      try {
+        payload = JSON.parse(dataStr);
+      } catch {
+        continue;
+      }
+
+      if (eventName === "planning") {
+        state = { ...state, status: "planning" };
+      } else if (eventName === "planned") {
+        const angles = (payload as { angles?: ResearchAngle[] }).angles ?? [];
+        state = { ...state, status: "researching", angles };
+      } else if (eventName === "searching") {
+        state = { ...state, status: "researching" };
+      } else if (eventName === "found") {
+        const finding = (payload as { finding?: ResearchFinding }).finding;
+        if (finding) {
+          state = { ...state, findings: [...state.findings, finding] };
+        }
+      } else if (eventName === "failed") {
+        const failure = payload as {
+          index?: number;
+          error?: string;
+        };
+        if (typeof failure.index === "number") {
+          state = {
+            ...state,
+            errors: [
+              ...state.errors,
+              { index: failure.index, message: failure.error ?? "failed" },
+            ],
+          };
+        }
+      } else if (eventName === "done") {
+        state = { ...state, status: "done" };
+      } else if (eventName === "error") {
+        state = { ...state, status: "error" };
+        const errMsg =
+          (payload as { error?: string }).error ?? "research failed";
+        opts.onState({ ...state });
+        const skippable =
+          (payload as { skippable?: boolean }).skippable === true;
+        if (skippable) {
+          return state.findings;
+        }
+        throw new Error(errMsg);
+      }
+      opts.onState({ ...state });
+    }
+  }
+
+  return state.findings;
+}
+
 async function readScriptStream(
   body: ReadableStream<Uint8Array>,
   onPartial: (p: PartialScriptObject) => void,
@@ -187,6 +302,9 @@ export default function Home() {
   const [mode, setMode] = useState<ProductionMode>("podcast");
   const [hostAName, setHostAName] = useState(DEFAULT_HOST_A_NAME);
   const [hostBName, setHostBName] = useState(DEFAULT_HOST_B_NAME);
+  const [useResearch, setUseResearch] = useState(true);
+  const [researchState, setResearchState] =
+    useState<ResearchState | null>(null);
   const [guide, setGuide] = useState("");
   const [clawsOut, setClawsOut] = useState(3);
   const [model, setModel] = useState(DEFAULT_MODEL);
@@ -318,6 +436,7 @@ export default function Home() {
       setScript(null);
       setStreamingScript(null);
       setAudioUrl(null);
+      setResearchState(null);
       if (audioBlobUrlRef.current) {
         URL.revokeObjectURL(audioBlobUrlRef.current);
         audioBlobUrlRef.current = null;
@@ -326,6 +445,31 @@ export default function Home() {
 
     try {
       let workingScript: Script;
+      let researchFindings: ResearchFinding[] = [];
+
+      if (!fromScript && useResearch) {
+        setPhase("researching");
+        const initial: ResearchState = { ...EMPTY_RESEARCH_STATE };
+        setResearchState(initial);
+        try {
+          researchFindings = await streamResearch({
+            transcript,
+            model,
+            byoKeys: keys,
+            onState: setResearchState,
+          });
+        } catch (e: unknown) {
+          setResearchState((prev) => ({
+            ...(prev ?? EMPTY_RESEARCH_STATE),
+            status: "error",
+          }));
+          const msg = e instanceof Error ? e.message : String(e);
+          if (!/skippable/i.test(msg)) {
+            console.warn("research failed but continuing:", msg);
+          }
+        }
+      }
+
       if (fromScript) {
         workingScript = fromScript;
         setScript(fromScript);
@@ -343,6 +487,7 @@ export default function Home() {
             model,
             byoKeys: keys,
             hostNames: { a: hostAName.trim() || DEFAULT_HOST_A_NAME, b: hostBName.trim() || DEFAULT_HOST_B_NAME },
+            research: researchFindings,
           }),
         });
 
@@ -565,6 +710,7 @@ export default function Home() {
     setCreditPrompt(null);
     setCustomVoices({});
     setCloningSpeaker(null);
+    setResearchState(null);
     setPhase("idle");
     if (audioBlobUrlRef.current) {
       URL.revokeObjectURL(audioBlobUrlRef.current);
@@ -579,7 +725,10 @@ export default function Home() {
   };
 
   const busy =
-    phase === "parsing" || phase === "scripting" || phase === "synthesizing";
+    phase === "parsing" ||
+    phase === "researching" ||
+    phase === "scripting" ||
+    phase === "synthesizing";
 
   const anyByoKeySet = Object.values(byoKeys).some(Boolean);
 
@@ -794,6 +943,25 @@ export default function Home() {
             </div>
           )}
 
+          <label className="flex items-start gap-3 bg-zinc-900/50 border border-zinc-800 rounded-lg p-3 cursor-pointer hover:border-zinc-700">
+            <input
+              type="checkbox"
+              checked={useResearch}
+              onChange={(e) => setUseResearch(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-emerald-500"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-zinc-200">
+                Deep research (3 angles)
+              </div>
+              <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">
+                Spawns three parallel agents that search the web for context,
+                background, and counterpoints to enrich the podcast. Adds 10–20s.
+                Powered by Tavily.
+              </p>
+            </div>
+          </label>
+
           <textarea
             value={guide}
             onChange={(e) => setGuide(e.target.value)}
@@ -935,6 +1103,15 @@ export default function Home() {
         <div className="bg-red-900/30 border border-red-700 rounded-lg p-3 text-sm text-red-200">
           {error}
         </div>
+      )}
+
+      {researchState && (
+        <section className="space-y-4 border-t border-zinc-800 pt-8">
+          <ResearchDisplay
+            state={researchState}
+            compact={phase !== "researching"}
+          />
+        </section>
       )}
 
       {streamingScript && (

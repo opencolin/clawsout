@@ -1,4 +1,34 @@
 import type { ProductionMode, Transcript } from "./types";
+import type { ResearchFinding } from "./research";
+
+function researchBlock(findings: ResearchFinding[] | undefined): string {
+  if (!findings || findings.length === 0) return "";
+  const sections = findings.map((f, i) => {
+    const sources = f.sources.length
+      ? `Sources cited:\n${f.sources
+          .map((s) => `  • ${s.title} — ${s.url}`)
+          .join("\n")}`
+      : "";
+    return `Angle ${i + 1} — ${f.label} (query: "${f.query}"):
+${f.answer || "(no summary)"}
+${sources}`.trim();
+  });
+  return `
+═══════════════════════════════════════════════════════════════
+ADDITIONAL RESEARCH CONTEXT — three angles pulled from web search.
+
+Use this to add color, context, and background. The SOURCE below is what your podcast is ABOUT — this research is to deepen your understanding of it, not to replace it.
+
+RULES:
+- Do not invent claims. If research adds a fact, it must be supported by a cited source.
+- Prefer the SOURCE when research and source conflict.
+- Hosts may reference research findings ("Some folks in this space have argued that…") but should NOT pretend to have personally read or watched the cited material.
+- Treat research as background reading the producer did, not as lived experience.
+═══════════════════════════════════════════════════════════════
+
+${sections.join("\n\n")}
+`;
+}
 
 const MASTER_RULES = `
 ═══════════════════════════════════════════════════════════════
@@ -152,6 +182,7 @@ export function scriptPrompt(
   speakerLabels: string[],
   clawsOut: number,
   hostNames: { a: string; b: string } = { a: "Rachel", b: "Adam" },
+  research: ResearchFinding[] = [],
 ): string {
   const guideBlock = guide?.trim()
     ? `\nUSER GUIDANCE (treat as a director's note from the user):\n${guide.trim()}\n`
@@ -159,12 +190,13 @@ export function scriptPrompt(
 
   const tone = clawsOutBlock(clawsOut);
   const speakerList = speakerLabels.join(", ");
+  const research_block = researchBlock(research);
 
   if (mode === "reenactment") {
     return `You are an award-winning podcast producer who has ghost-written for narrative-driven shows like Slow Burn, Serial, and S-Town. You're turning a real conversation into a tight reenactment podcast. The speakers in the source ARE the speakers in the podcast.
 
 ${MASTER_RULES}
-
+${research_block}
 SOURCE:
 ${transcriptBlock(transcript)}
 
@@ -194,7 +226,7 @@ Return ONLY valid JSON in this shape:
     return `You are an award-winning documentary podcast producer in the style of Serial, S-Town, and Heavyweight. The original speakers' words appear as clips inside a narrator-driven story.
 
 ${MASTER_RULES}
-
+${research_block}
 SOURCE:
 ${transcriptBlock(transcript)}
 
@@ -225,7 +257,7 @@ Return ONLY valid JSON in this shape:
   return `You are an award-winning podcast producer in the lineage of Lenny Rachitsky, This American Life, Acquired, and Hard Fork. You produce two-host episodes that LISTENERS COME BACK FOR — episodes where they learn something, hear an interesting story, and leave entertained.
 
 ${MASTER_RULES}
-
+${research_block}
 SOURCE CONTENT (a chat, meeting transcript, document, article, recording — whatever was supplied):
 ${transcriptBlock(transcript)}
 
