@@ -8,11 +8,17 @@ import type {
   Transcript,
 } from "@/lib/types";
 import { autoCast, DEFAULT_NARRATOR_VOICE } from "@/lib/voices";
-import { MODELS, DEFAULT_MODEL, type BYOKeys } from "@/lib/llm";
+import {
+  MODELS,
+  DEFAULT_MODEL,
+  type BYOKeys,
+  type PartialScriptObject,
+} from "@/lib/llm";
 import type { BYOProvider } from "@/lib/errors";
 import Casting from "@/components/Casting";
 import Player from "@/components/Player";
 import ByoKeyPrompt from "@/components/ByoKeyPrompt";
+import ScriptStream from "@/components/ScriptStream";
 
 type Phase = "idle" | "parsing" | "scripting" | "synthesizing" | "done";
 
@@ -89,6 +95,63 @@ function clawsLabel(level: number): string {
   return "Maximum claws";
 }
 
+type ScriptStreamResult =
+  | { kind: "done"; partial: PartialScriptObject | null }
+  | { kind: "error"; data: ApiError };
+
+type ApiError = {
+  error?: string;
+  code?: string;
+  provider?: string;
+  needsByoKey?: boolean;
+};
+
+async function readScriptStream(
+  body: ReadableStream<Uint8Array>,
+  onPartial: (p: PartialScriptObject) => void,
+): Promise<ScriptStreamResult> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let last: PartialScriptObject | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const events = buffer.split("\n\n");
+    buffer = events.pop() ?? "";
+
+    for (const raw of events) {
+      const ev = raw.trim();
+      if (!ev) continue;
+      let eventName = "message";
+      let dataStr = "";
+      for (const line of ev.split("\n")) {
+        if (line.startsWith("event: ")) eventName = line.slice(7).trim();
+        else if (line.startsWith("data: ")) dataStr += line.slice(6);
+      }
+      if (!dataStr) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(dataStr);
+      } catch {
+        continue;
+      }
+
+      if (eventName === "partial") {
+        last = parsed as PartialScriptObject;
+        onPartial(last);
+      } else if (eventName === "error") {
+        return { kind: "error", data: parsed as ApiError };
+      }
+    }
+  }
+
+  return { kind: "done", partial: last };
+}
+
 function loadByoKeys(): BYOKeys {
   if (typeof window === "undefined") return {};
   try {
@@ -118,6 +181,8 @@ export default function Home() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [script, setScript] = useState<Script | null>(null);
+  const [streamingScript, setStreamingScript] =
+    useState<PartialScriptObject | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [byoKeys, setByoKeys] = useState<BYOKeys>({});
   const [creditPrompt, setCreditPrompt] = useState<CreditPrompt | null>(null);
@@ -151,13 +216,6 @@ export default function Home() {
     setDragging(false);
     const f = e.dataTransfer.files?.[0];
     if (f) await onFile(f);
-  };
-
-  type ApiError = {
-    error?: string;
-    code?: string;
-    provider?: string;
-    needsByoKey?: boolean;
   };
 
   const handleCreditError = (
@@ -224,6 +282,7 @@ export default function Home() {
     setError(null);
     if (!fromScript) {
       setScript(null);
+      setStreamingScript(null);
       setAudioUrl(null);
       if (audioBlobUrlRef.current) {
         URL.revokeObjectURL(audioBlobUrlRef.current);
@@ -236,6 +295,7 @@ export default function Home() {
       if (fromScript) {
         workingScript = fromScript;
         setScript(fromScript);
+        setStreamingScript(fromScript);
       } else {
         setPhase("scripting");
         const sRes = await fetch("/api/script", {
@@ -250,17 +310,36 @@ export default function Home() {
             byoKeys: keys,
           }),
         });
-        const sData = await sRes.json();
-        if (!sRes.ok) {
-          if (handleCreditError(sData, { kind: "script-and-tts" })) return;
-          throw new Error(sData.error || "script failed");
+
+        if (!sRes.ok || !sRes.body) {
+          const data = (await sRes.json().catch(() => ({}))) as ApiError;
+          if (handleCreditError(data, { kind: "script-and-tts" })) return;
+          throw new Error(data.error || `script failed (${sRes.status})`);
+        }
+
+        const result = await readScriptStream(sRes.body, setStreamingScript);
+        if (result.kind === "error") {
+          if (handleCreditError(result.data, { kind: "script-and-tts" })) return;
+          throw new Error(result.data.error || "script failed");
+        }
+        const partial = result.partial;
+        if (!partial?.lines || partial.lines.length === 0) {
+          throw new Error("Script generation produced no lines");
         }
         workingScript = {
-          title: sData.title,
-          showNotes: sData.showNotes,
-          lines: sData.lines,
+          title: partial.title ?? "Untitled episode",
+          showNotes: partial.showNotes ?? "",
+          lines: partial.lines.filter(
+            (l): l is { speaker: string; text: string } =>
+              Boolean(l.speaker && l.text),
+          ),
         };
         setScript(workingScript);
+        setStreamingScript({
+          title: workingScript.title,
+          showNotes: workingScript.showNotes,
+          lines: workingScript.lines,
+        });
       }
 
       setPhase("synthesizing");
@@ -318,6 +397,7 @@ export default function Home() {
     setUrl("");
     setFile(null);
     setScript(null);
+    setStreamingScript(null);
     setAudioUrl(null);
     setError(null);
     setCreditPrompt(null);
@@ -605,14 +685,11 @@ export default function Home() {
               ? PHASE_LABEL[phase as Exclude<Phase, "idle">]
               : "Generate podcast"}
           </button>
-          {busy && (
+          {phase === "synthesizing" && (
             <div className="flex items-center gap-2 text-sm text-zinc-400 justify-center">
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>
-                {phase === "scripting" &&
-                  "This usually takes 15-45 seconds depending on the model."}
-                {phase === "synthesizing" &&
-                  `Synthesizing ${script?.lines.length ?? 0} lines via ElevenLabs — about 1-3 minutes.`}
+                Synthesizing {script?.lines.length ?? 0} lines via ElevenLabs — about 1-3 minutes.
               </span>
             </div>
           )}
@@ -652,14 +729,17 @@ export default function Home() {
         </div>
       )}
 
-      {audioUrl && script && (
+      {streamingScript && (
         <section className="space-y-4 border-t border-zinc-800 pt-8">
-          <Player
-            title={script.title}
-            showNotes={script.showNotes}
-            audioUrl={audioUrl}
-            lines={script.lines}
+          <ScriptStream
+            title={streamingScript.title}
+            showNotes={streamingScript.showNotes}
+            lines={streamingScript.lines}
+            streaming={phase === "scripting"}
           />
+          {audioUrl && script && (
+            <Player src={audioUrl} filename={script.title} />
+          )}
         </section>
       )}
 

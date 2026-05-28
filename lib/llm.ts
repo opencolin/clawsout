@@ -1,12 +1,33 @@
-import { generateText, type LanguageModel } from "ai";
+import { generateText, streamObject, type LanguageModel } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { z } from "zod";
 import {
   classifyError,
   missingKeyError,
   type BYOProvider,
   type ClassifiedError,
 } from "./errors";
+
+export const ScriptSchema = z.object({
+  title: z.string().describe("Episode title — short, evocative, no clickbait"),
+  showNotes: z.string().describe("2-4 sentence description with the key beats"),
+  lines: z.array(
+    z.object({
+      speaker: z
+        .string()
+        .describe("Speaker name from the transcript, or NARRATOR / HOST_A / HOST_B"),
+      text: z.string().describe("The spoken line, written for the ear"),
+    }),
+  ),
+});
+
+export type ScriptObject = z.infer<typeof ScriptSchema>;
+export type PartialScriptObject = {
+  title?: string;
+  showNotes?: string;
+  lines?: { speaker?: string; text?: string }[];
+};
 
 const TOKEN_FACTORY_BASE_URL = "https://api.tokenfactory.nebius.com/v1";
 
@@ -129,6 +150,53 @@ export async function callLLM(opts: {
       maxOutputTokens: 8000,
     });
     return text;
+  } catch (err: unknown) {
+    if (err instanceof LLMError) throw err;
+    throw new LLMError(classifyError(err, provider));
+  }
+}
+
+export async function* streamScript(opts: {
+  model: string;
+  prompt: string;
+  byoKeys?: BYOKeys;
+}): AsyncGenerator<PartialScriptObject, void, undefined> {
+  const def = modelDef(opts.model);
+  const provider = modelByoProvider(def);
+  const userKey = opts.byoKeys?.[provider];
+
+  try {
+    if (userKey) {
+      const text = await callDirectProvider(def, opts.prompt, userKey);
+      const obj = extractJson(text) as ScriptObject;
+      yield obj;
+      return;
+    }
+
+    let model: LanguageModel;
+    if (def.provider === "nebius") {
+      const envKey = process.env.NEBIUS_API_KEY;
+      if (!envKey) throw new LLMError(missingKeyError("nebius"));
+      const nebius = createOpenAICompatible({
+        name: "nebius",
+        baseURL: TOKEN_FACTORY_BASE_URL,
+        apiKey: envKey,
+      });
+      model = nebius(def.apiModel) as LanguageModel;
+    } else {
+      model = gateway(def.apiModel);
+    }
+
+    const result = streamObject({
+      model,
+      schema: ScriptSchema,
+      prompt: opts.prompt,
+      maxOutputTokens: 8000,
+    });
+
+    for await (const partial of result.partialObjectStream) {
+      yield partial as PartialScriptObject;
+    }
   } catch (err: unknown) {
     if (err instanceof LLMError) throw err;
     throw new LLMError(classifyError(err, provider));

@@ -1,6 +1,6 @@
 // Regression tests for error classification.
 // Run:  npm test    (uses tsx via package.json)
-import { classifyError } from "../lib/errors.ts";
+import { classifyError } from "../lib/errors";
 
 type Case = {
   name: string;
