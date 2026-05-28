@@ -462,6 +462,43 @@ export default function Home() {
     }
   };
 
+  const editTitle = (title: string) => {
+    setStreamingScript((prev) =>
+      prev ? { ...prev, title } : { title, lines: [] },
+    );
+    setScript((prev) => (prev ? { ...prev, title } : prev));
+  };
+
+  const editNotes = (showNotes: string) => {
+    setStreamingScript((prev) =>
+      prev ? { ...prev, showNotes } : { showNotes, lines: [] },
+    );
+    setScript((prev) => (prev ? { ...prev, showNotes } : prev));
+  };
+
+  const editLine = (index: number, text: string) => {
+    setStreamingScript((prev) => {
+      if (!prev?.lines) return prev;
+      const lines = [...prev.lines];
+      const existing = lines[index] ?? { speaker: "", text: "" };
+      lines[index] = { ...existing, text };
+      return { ...prev, lines };
+    });
+    setScript((prev) => {
+      if (!prev) return prev;
+      const lines = [...prev.lines];
+      if (lines[index]) {
+        lines[index] = { ...lines[index], text };
+      }
+      return { ...prev, lines };
+    });
+  };
+
+  const regenerateAudio = () => {
+    if (!script) return;
+    void generate(undefined, script);
+  };
+
   const onSaveBYOKey = (key: string) => {
     if (!creditPrompt) return;
     const newKeys = { ...byoKeys, [creditPrompt.provider]: key };
@@ -832,10 +869,33 @@ export default function Home() {
             showNotes={streamingScript.showNotes}
             lines={streamingScript.lines}
             streaming={phase === "scripting"}
+            editable={
+              script
+                ? {
+                    onTitleChange: editTitle,
+                    onNotesChange: editNotes,
+                    onLineChange: editLine,
+                  }
+                : undefined
+            }
           />
           {audioUrl && script && transcript && (
             <>
               <Player src={audioUrl} filename={script.title} />
+              <div className="flex items-center gap-3 text-xs">
+                <button
+                  onClick={regenerateAudio}
+                  disabled={busy}
+                  className="px-3 py-1.5 border border-zinc-800 hover:border-emerald-500/50 hover:text-emerald-300 rounded text-zinc-300 disabled:opacity-50"
+                >
+                  {phase === "synthesizing"
+                    ? "Re-synthesizing…"
+                    : "↻ Regenerate audio with edits"}
+                </button>
+                <span className="text-zinc-500">
+                  Edits to the script above don&apos;t affect the player until you regenerate.
+                </span>
+              </div>
               <PostProduction
                 audioUrl={audioUrl}
                 title={script.title}
