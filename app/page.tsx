@@ -7,7 +7,12 @@ import type {
   SpeakerCast,
   Transcript,
 } from "@/lib/types";
-import { autoCast, DEFAULT_NARRATOR_VOICE } from "@/lib/voices";
+import {
+  autoCast,
+  defaultVoiceFor,
+  DEFAULT_NARRATOR_VOICE,
+} from "@/lib/voices";
+import type { ClonedVoice } from "@/lib/voice-cloning";
 import {
   MODELS,
   DEFAULT_MODEL,
@@ -67,7 +72,8 @@ const BYO_LS_KEY = "clawsout.byoKeys";
 type RetryAction =
   | { kind: "parse" }
   | { kind: "script-and-tts" }
-  | { kind: "tts-only"; script: Script };
+  | { kind: "tts-only"; script: Script }
+  | { kind: "clone-voice"; speaker: string; file: File };
 
 type CreditPrompt = {
   provider: BYOProvider;
@@ -186,6 +192,10 @@ export default function Home() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [byoKeys, setByoKeys] = useState<BYOKeys>({});
   const [creditPrompt, setCreditPrompt] = useState<CreditPrompt | null>(null);
+  const [customVoices, setCustomVoices] = useState<Record<string, ClonedVoice>>(
+    {},
+  );
+  const [cloningSpeaker, setCloningSpeaker] = useState<string | null>(null);
   const audioBlobUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -375,6 +385,63 @@ export default function Home() {
     }
   };
 
+  const cloneVoice = async (
+    speaker: string,
+    file: File,
+    overrideKeys?: BYOKeys,
+  ) => {
+    const keys = overrideKeys ?? byoKeys;
+    setError(null);
+    setCloningSpeaker(speaker);
+    try {
+      const form = new FormData();
+      form.append("name", speaker);
+      form.append("file", file);
+      if (keys.elevenlabs) form.append("byoKey", keys.elevenlabs);
+
+      const res = await fetch("/api/clone-voice", {
+        method: "POST",
+        body: form,
+      });
+      const data = (await res.json()) as ApiError & {
+        voiceId?: string;
+        name?: string;
+      };
+      if (!res.ok) {
+        if (handleCreditError(data, { kind: "clone-voice", speaker, file })) {
+          setCloningSpeaker(null);
+          return;
+        }
+        throw new Error(data.error || `voice clone failed (${res.status})`);
+      }
+
+      const cloned: ClonedVoice = {
+        voiceId: data.voiceId ?? "",
+        name: data.name ?? speaker,
+      };
+      setCustomVoices((prev) => ({ ...prev, [speaker]: cloned }));
+      setCast((prev) => ({ ...prev, [speaker]: cloned.voiceId }));
+      setCloningSpeaker(null);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+      setCloningSpeaker(null);
+    }
+  };
+
+  const clearClone = (speaker: string) => {
+    setCustomVoices((prev) => {
+      const next = { ...prev };
+      delete next[speaker];
+      return next;
+    });
+    if (transcript) {
+      setCast((prev) => ({
+        ...prev,
+        [speaker]: defaultVoiceFor(speaker, transcript.speakers),
+      }));
+    }
+  };
+
   const onSaveBYOKey = (key: string) => {
     if (!creditPrompt) return;
     const newKeys = { ...byoKeys, [creditPrompt.provider]: key };
@@ -386,6 +453,8 @@ export default function Home() {
       void parse(newKeys);
     } else if (retry.kind === "script-and-tts") {
       void generate(newKeys);
+    } else if (retry.kind === "clone-voice") {
+      void cloneVoice(retry.speaker, retry.file, newKeys);
     } else {
       void generate(newKeys, retry.script);
     }
@@ -401,6 +470,8 @@ export default function Home() {
     setAudioUrl(null);
     setError(null);
     setCreditPrompt(null);
+    setCustomVoices({});
+    setCloningSpeaker(null);
     setPhase("idle");
     if (audioBlobUrlRef.current) {
       URL.revokeObjectURL(audioBlobUrlRef.current);
@@ -558,8 +629,12 @@ export default function Home() {
             speakers={transcript.speakers}
             cast={cast}
             narratorVoiceId={narrator}
+            customVoices={customVoices}
+            cloningSpeaker={cloningSpeaker}
             onCastChange={setCast}
             onNarratorChange={setNarrator}
+            onCloneRequest={cloneVoice}
+            onClearClone={clearClone}
           />
         </section>
       )}

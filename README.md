@@ -16,6 +16,12 @@ No accounts. No payment pages. Bring your own API keys — they stay in your bro
 | **Documentary** | A narrator drives the story; real participants appear as ~20-second "clips" | Archival or investigative content |
 | **Commentary** | Two AI hosts discuss the transcript, quoting participants by name | Explaining content to outsiders |
 
+## Voice cloning
+
+For any detected speaker, click **Clone voice** in the casting step and upload a 30–60 second audio sample (mp3 / wav / m4a / flac / ogg, up to 4 MB). ElevenLabs Instant Voice Cloning creates a custom voice and that speaker is automatically cast with it for the rest of the session. Cloned voices stay in your ElevenLabs account — you can manage them at <https://elevenlabs.io/app/voice-library>.
+
+Available with any paid ElevenLabs plan. The clone uses your `ELEVENLABS_API_KEY` env var (or BYO key fallback) and counts against your voice slots.
+
 ## Claws-out slider
 
 A 0–10 dial controls the tone of the script:

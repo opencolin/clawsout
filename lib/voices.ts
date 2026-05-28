@@ -126,6 +126,14 @@ export function autoCast(speakers: string[]): SpeakerCast {
   return cast;
 }
 
+export function defaultVoiceFor(
+  speaker: string,
+  allSpeakers: string[],
+): string {
+  const idx = allSpeakers.indexOf(speaker);
+  return PRIORITY_ORDER[Math.max(0, idx) % PRIORITY_ORDER.length];
+}
+
 export const DEFAULT_NARRATOR_VOICE = "onwK4e9ZLuTAKqWW03F9";
 
 export const HOST_A_VOICE = "21m00Tcm4TlvDq8ikWAM";
