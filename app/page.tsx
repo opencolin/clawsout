@@ -24,6 +24,8 @@ import Casting from "@/components/Casting";
 import Player from "@/components/Player";
 import ByoKeyPrompt from "@/components/ByoKeyPrompt";
 import ScriptStream from "@/components/ScriptStream";
+import PostProduction from "@/components/PostProduction";
+import type { UserVoice } from "@/lib/elevenlabs";
 
 type Phase = "idle" | "parsing" | "scripting" | "synthesizing" | "done";
 
@@ -196,11 +198,29 @@ export default function Home() {
     {},
   );
   const [cloningSpeaker, setCloningSpeaker] = useState<string | null>(null);
+  const [userVoices, setUserVoices] = useState<UserVoice[]>([]);
   const audioBlobUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     setByoKeys(loadByoKeys());
   }, []);
+
+  useEffect(() => {
+    if (!transcript) return;
+    const headers: Record<string, string> = {};
+    if (byoKeys.elevenlabs) headers["x-byo-key"] = byoKeys.elevenlabs;
+    let cancelled = false;
+    fetch("/api/voices", { headers })
+      .then((r) => r.json())
+      .then((data: { voices?: UserVoice[] }) => {
+        if (cancelled) return;
+        setUserVoices(data.voices ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [transcript, byoKeys.elevenlabs, customVoices]);
 
   useEffect(() => {
     return () => {
@@ -631,6 +651,7 @@ export default function Home() {
             narratorVoiceId={narrator}
             customVoices={customVoices}
             cloningSpeaker={cloningSpeaker}
+            userVoices={userVoices}
             onCastChange={setCast}
             onNarratorChange={setNarrator}
             onCloneRequest={cloneVoice}
@@ -812,8 +833,34 @@ export default function Home() {
             lines={streamingScript.lines}
             streaming={phase === "scripting"}
           />
-          {audioUrl && script && (
-            <Player src={audioUrl} filename={script.title} />
+          {audioUrl && script && transcript && (
+            <>
+              <Player src={audioUrl} filename={script.title} />
+              <PostProduction
+                audioUrl={audioUrl}
+                title={script.title}
+                scriptText={script.lines
+                  .map((l) => `${l.speaker}: ${l.text}`)
+                  .join("\n\n")}
+                defaultVoiceId={cast[transcript.speakers[0]] ?? narrator}
+                narratorVoiceId={narrator}
+                byoKey={byoKeys.elevenlabs}
+                onCreditError={(data) => {
+                  if (!data.needsByoKey) return false;
+                  setCreditPrompt({
+                    provider: "elevenlabs",
+                    reason:
+                      data.code === "missing_key"
+                        ? "missing_key"
+                        : "insufficient_credits",
+                    message:
+                      data.error ?? "Out of credits or no key configured.",
+                    retry: { kind: "tts-only", script },
+                  });
+                  return true;
+                }}
+              />
+            </>
           )}
         </section>
       )}

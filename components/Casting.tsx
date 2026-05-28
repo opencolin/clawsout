@@ -2,6 +2,7 @@
 
 import type { SpeakerCast, Voice } from "@/lib/types";
 import type { ClonedVoice } from "@/lib/voice-cloning";
+import type { UserVoice } from "@/lib/elevenlabs";
 import { VOICES } from "@/lib/voices";
 
 const CLONE_ACCEPT = ".mp3,.wav,.m4a,.flac,.ogg,audio/*";
@@ -12,13 +13,16 @@ function VoiceSelect({
   onChange,
   filter,
   disabled,
+  userVoices,
 }: {
   value: string;
   onChange: (id: string) => void;
   filter?: (v: Voice) => boolean;
   disabled?: boolean;
+  userVoices?: UserVoice[];
 }) {
   const voices = filter ? VOICES.filter(filter) : VOICES;
+  const lib = (userVoices ?? []).filter((v) => v.voiceId && v.name);
   return (
     <select
       value={value}
@@ -26,11 +30,22 @@ function VoiceSelect({
       disabled={disabled}
       className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-sm w-full disabled:opacity-50"
     >
-      {voices.map((v) => (
-        <option key={v.id} value={v.id}>
-          {v.name} — {v.gender}, {v.accent} ({v.description})
-        </option>
-      ))}
+      {lib.length > 0 && (
+        <optgroup label="Your ElevenLabs library">
+          {lib.map((v) => (
+            <option key={v.voiceId} value={v.voiceId}>
+              {v.name} — {v.category}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      <optgroup label="Curated presets">
+        {voices.map((v) => (
+          <option key={v.id} value={v.id}>
+            {v.name} — {v.gender}, {v.accent} ({v.description})
+          </option>
+        ))}
+      </optgroup>
     </select>
   );
 }
@@ -41,6 +56,7 @@ export default function Casting({
   narratorVoiceId,
   customVoices,
   cloningSpeaker,
+  userVoices,
   onCastChange,
   onNarratorChange,
   onCloneRequest,
@@ -51,6 +67,7 @@ export default function Casting({
   narratorVoiceId: string;
   customVoices: Record<string, ClonedVoice>;
   cloningSpeaker: string | null;
+  userVoices: UserVoice[];
   onCastChange: (cast: SpeakerCast) => void;
   onNarratorChange: (voiceId: string) => void;
   onCloneRequest: (speaker: string, file: File) => void;
@@ -109,6 +126,7 @@ export default function Casting({
                           onCastChange({ ...cast, [speaker]: id })
                         }
                         disabled={isCloning}
+                        userVoices={userVoices}
                       />
                     </div>
                     <label
@@ -143,6 +161,7 @@ export default function Casting({
               value={narratorVoiceId}
               onChange={onNarratorChange}
               filter={(v) => v.goodFor.includes("narrator")}
+              userVoices={userVoices}
             />
           </div>
         </div>

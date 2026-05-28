@@ -22,6 +22,17 @@ For any detected speaker, click **Clone voice** in the casting step and upload a
 
 Available with any paid ElevenLabs plan. The clone uses your `ELEVENLABS_API_KEY` env var (or BYO key fallback) and counts against your voice slots.
 
+## Your ElevenLabs library
+
+When the casting step opens, clawsout fetches your existing voices from `/v1/voices` and lists them under **Your ElevenLabs library** in the cast dropdown — including instant clones, professional voice clones, and any voices you've saved from the voice library. The curated 12-voice preset list stays available below as a fallback.
+
+## Post-production
+
+After audio is generated, two extra workflows appear:
+
+- **Translate** — pick a target language (24 supported, from Spanish to Vietnamese) and clawsout will POST the MP3 to ElevenLabs `/v1/dubbing`, poll until ready (1–5 min), and serve the dubbed audio with its own player and download link. Source language is auto-detected. Speaker count is inferred.
+- **Save to ElevenLabs Studio** — sends the generated script (each line as a paragraph) to `/v1/studio/projects` as a text document. The first speaker's voice becomes the project default; the narrator voice becomes the default for titles. Returns a Studio URL — clawsout opens it in a new tab so you can fine-tune voice assignments, regenerate per paragraph, and use Studio's editor for long-form output up to 1,000 projects.
+
 ## Claws-out slider
 
 A 0–10 dial controls the tone of the script:
