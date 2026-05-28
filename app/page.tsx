@@ -38,19 +38,19 @@ const PHASE_LABEL: Record<Exclude<Phase, "idle">, string> = {
 
 const MODES: { id: ProductionMode; label: string; desc: string }[] = [
   {
+    id: "podcast",
+    label: "Podcast",
+    desc: "Two AI hosts walk you through the content. The classic format — works for chats, articles, PDFs, meetings, anything.",
+  },
+  {
     id: "reenactment",
     label: "Reenactment",
-    desc: "AI voices perform the original participants. Best for meetings and Slack threads.",
+    desc: "AI voices perform the actual people from the source. Best when the content is a conversation you want to hear.",
   },
   {
     id: "documentary",
     label: "Documentary",
-    desc: "Narrator drives the arc, real participants appear as clips. Best for archival or controversial content.",
-  },
-  {
-    id: "commentary",
-    label: "Commentary",
-    desc: "Two AI hosts discuss the transcript. Best for explaining content to outsiders.",
+    desc: "Narrator drives the arc, real participants appear as clips. Best for archival or investigative content.",
   },
 ];
 
@@ -182,7 +182,7 @@ export default function Home() {
   const [transcript, setTranscript] = useState<Transcript | null>(null);
   const [cast, setCast] = useState<SpeakerCast>({});
   const [narrator, setNarrator] = useState(DEFAULT_NARRATOR_VOICE);
-  const [mode, setMode] = useState<ProductionMode>("reenactment");
+  const [mode, setMode] = useState<ProductionMode>("podcast");
   const [guide, setGuide] = useState("");
   const [clawsOut, setClawsOut] = useState(3);
   const [model, setModel] = useState(DEFAULT_MODEL);
@@ -559,15 +559,16 @@ export default function Home() {
           <span className="text-emerald-400">claws</span>out
         </h1>
         <p className="text-sm text-zinc-400 mt-1">
-          Turn any transcript into a realistic podcast — with a comedy dial that goes claws out.
+          Turn any content — chats, docs, articles, audio — into a realistic podcast. With a comedy dial that goes claws out.
         </p>
       </header>
 
       {!transcript && (
         <section className="space-y-4">
-          <h2 className="text-lg font-medium">1. Drop in a transcript</h2>
+          <h2 className="text-lg font-medium">1. Drop in your content</h2>
           <p className="text-sm text-zinc-400">
-            Paste text, drop a file, or paste a URL. Supports{" "}
+            Paste text, drop a file, or paste a URL — chat transcripts,
+            articles, meeting notes, anything. Supports{" "}
             <span className="text-zinc-300">
               PDF, DOCX, RTF, MD, HTML, TXT, VTT, SRT, JSON
             </span>{" "}
@@ -609,7 +610,7 @@ export default function Home() {
               }}
               onDragLeave={() => setDragging(false)}
               onDrop={onDrop}
-              placeholder={`Paste a transcript here, or drop a file.\n\nSarah: I think we should ship this Friday.\nAdam: That feels aggressive — QA still has the regression list to work through.\nSarah: We can hotfix anything critical after.`}
+              placeholder={`Paste anything here — a chat, a doc, an article, meeting notes.\n\nSarah: I think we should ship this Friday.\nAdam: That feels aggressive — QA still has the regression list to work through.\nSarah: We can hotfix anything critical after.`}
               className={`w-full min-h-48 bg-zinc-900 border rounded-lg p-4 text-sm font-mono focus:outline-none placeholder:text-zinc-600 transition-colors ${
                 dragging
                   ? "border-emerald-500 bg-emerald-500/5"

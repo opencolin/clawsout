@@ -24,7 +24,7 @@ export type Transcript = {
   speakers: string[];
 };
 
-export type ProductionMode = "reenactment" | "documentary" | "commentary";
+export type ProductionMode = "podcast" | "reenactment" | "documentary";
 
 export type Voice = {
   id: string;

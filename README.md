@@ -1,10 +1,10 @@
 # clawsout
 
-Turn any transcript into a realistic multi-voice podcast — with a comedy dial that goes claws out.
+Turn any content into a realistic multi-voice podcast — with a comedy dial that goes claws out.
 
 **Live at <https://clawsout.ai>** · [Repo](https://github.com/opencolin/clawsout)
 
-Paste a Slack export, a meeting `.vtt`, a PDF, a Word doc, a URL, or any audio file. clawsout detects the speakers, casts each one a distinct voice, writes a podcast script in one of three formats at the comedy intensity you want, and synthesizes audio you can play or download.
+Drop in a Slack export, a meeting `.vtt`, a PDF, a Word doc, a URL, an audio file — anything. clawsout detects the speakers (if any), casts each a distinct voice, writes a podcast script in one of three formats at the comedy intensity you want, and synthesizes audio you can play or download.
 
 No accounts. No payment pages. Bring your own API keys — they stay in your browser. Pushes to `main` auto-deploy to production via Vercel.
 
@@ -12,9 +12,9 @@ No accounts. No payment pages. Bring your own API keys — they stay in your bro
 
 | Mode | What you get | Best for |
 |---|---|---|
-| **Reenactment** | AI voices perform the original participants, with a narrator for scene-setting | Slack threads, meetings, depositions |
+| **Podcast** (default) | Two AI hosts walk you through the content, explaining and reacting | The classic NotebookLM-style podcast — works for any source |
+| **Reenactment** | AI voices perform the actual people from the source, with a narrator for scene-setting | Chat threads, meetings, depositions |
 | **Documentary** | A narrator drives the story; real participants appear as ~20-second "clips" | Archival or investigative content |
-| **Commentary** | Two AI hosts discuss the transcript, quoting participants by name | Explaining content to outsiders |
 
 ## Voice cloning
 

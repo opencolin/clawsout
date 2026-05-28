@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "clawsout — turn any transcript into a sharp podcast",
+  title: "clawsout — turn anything into a podcast",
   description:
-    "Generate realistic multi-host podcasts from Slack, meetings, PDFs, or any text — with a comedy dial from professional to claws out. Bring your own API key.",
+    "Generate realistic multi-host podcasts from chat transcripts, meetings, PDFs, articles, or audio — with a comedy dial from professional to claws out.",
 };
 
 export default function RootLayout({

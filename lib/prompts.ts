@@ -134,9 +134,9 @@ Return ONLY valid JSON in this shape:
 }`;
   }
 
-  return `You are a podcast producer creating a two-host commentary podcast about a real conversation.
+  return `You are a podcast producer creating a two-host podcast episode from the source content below.
 
-TRANSCRIPT (raw conversation the hosts are discussing):
+SOURCE CONTENT (what the hosts are discussing — could be a chat, a meeting transcript, a document, an article, anything):
 ${transcriptBlock(transcript)}
 
 YOUR HOSTS (the only speakers in the output): HOST_A, HOST_B
@@ -145,12 +145,11 @@ ${tone}
 ${guideBlock}
 ${SHARED_RULES}
 
-MODE: COMMENTARY
-- Two hosts in the studio reacting to and analyzing the transcript above.
-- They quote real participants by name ("So at one point, ${speakerLabels[0] ?? "Sam"} says...").
-- Natural back-and-forth: agree, disagree, build on each other.
-- Open with HOST_A teasing the most interesting moment ("Okay, you have to hear what happened in this meeting...").
-- Each host's turn is 1-3 sentences before handing off. Avoid monologues.
+MODE: PODCAST
+- Two hosts in the studio walk the audience through what's in the source. They explain, react, and find the story.
+- They quote real participants by name when speakers exist in the source ("So at one point, ${speakerLabels[0] ?? "Sam"} says..."). For non-conversational sources (an article, a doc), they summarize the key claims and discuss them.
+- Natural back-and-forth: agree, disagree, build on each other. Hand off frequently — each host's turn is 1-3 sentences before the other picks up.
+- Open with HOST_A teasing the most interesting moment or claim. Avoid clickbait — make it real.
 - Target output: 1000-2000 spoken words (~7-13 minutes).
 - End with one host delivering a clean takeaway.
 
