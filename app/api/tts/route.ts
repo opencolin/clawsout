@@ -11,6 +11,7 @@ type Body = {
   cast: Record<string, string>;
   narratorVoiceId: string;
   byoKey?: string;
+  hostNames?: { a: string; b: string };
 };
 
 export async function POST(req: NextRequest) {
@@ -36,7 +37,12 @@ export async function POST(req: NextRequest) {
 
     const buffers: ArrayBuffer[] = [];
     for (const line of body.lines) {
-      const voiceId = resolveVoice(line.speaker, body.cast, body.narratorVoiceId);
+      const voiceId = resolveVoice(
+        line.speaker,
+        body.cast,
+        body.narratorVoiceId,
+        body.hostNames,
+      );
       const audio = await synthesizeLine({
         apiKey,
         voiceId,
@@ -71,9 +77,18 @@ function resolveVoice(
   speaker: string,
   cast: Record<string, string>,
   narratorVoiceId: string,
+  hostNames?: { a: string; b: string },
 ): string {
   const upper = speaker.toUpperCase().trim();
   if (upper === "NARRATOR") return narratorVoiceId;
+
+  if (hostNames) {
+    const aUp = hostNames.a.toUpperCase().trim();
+    const bUp = hostNames.b.toUpperCase().trim();
+    if (upper === aUp) return HOST_A_VOICE;
+    if (upper === bUp) return HOST_B_VOICE;
+  }
+
   if (upper === "HOST_A" || upper === "HOST A") return HOST_A_VOICE;
   if (upper === "HOST_B" || upper === "HOST B") return HOST_B_VOICE;
   if (cast[speaker]) return cast[speaker];

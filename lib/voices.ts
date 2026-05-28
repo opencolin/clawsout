@@ -138,3 +138,6 @@ export const DEFAULT_NARRATOR_VOICE = "onwK4e9ZLuTAKqWW03F9";
 
 export const HOST_A_VOICE = "21m00Tcm4TlvDq8ikWAM";
 export const HOST_B_VOICE = "pNInz6obpgDQGcFmaJgB";
+
+export const DEFAULT_HOST_A_NAME = "Rachel";
+export const DEFAULT_HOST_B_NAME = "Adam";

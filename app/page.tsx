@@ -11,6 +11,8 @@ import {
   autoCast,
   defaultVoiceFor,
   DEFAULT_NARRATOR_VOICE,
+  DEFAULT_HOST_A_NAME,
+  DEFAULT_HOST_B_NAME,
 } from "@/lib/voices";
 import type { ClonedVoice } from "@/lib/voice-cloning";
 import {
@@ -183,6 +185,8 @@ export default function Home() {
   const [cast, setCast] = useState<SpeakerCast>({});
   const [narrator, setNarrator] = useState(DEFAULT_NARRATOR_VOICE);
   const [mode, setMode] = useState<ProductionMode>("podcast");
+  const [hostAName, setHostAName] = useState(DEFAULT_HOST_A_NAME);
+  const [hostBName, setHostBName] = useState(DEFAULT_HOST_B_NAME);
   const [guide, setGuide] = useState("");
   const [clawsOut, setClawsOut] = useState(3);
   const [model, setModel] = useState(DEFAULT_MODEL);
@@ -338,6 +342,7 @@ export default function Home() {
             clawsOut,
             model,
             byoKeys: keys,
+            hostNames: { a: hostAName.trim() || DEFAULT_HOST_A_NAME, b: hostBName.trim() || DEFAULT_HOST_B_NAME },
           }),
         });
 
@@ -381,6 +386,7 @@ export default function Home() {
           cast,
           narratorVoiceId: narrator,
           byoKey: keys.elevenlabs,
+          hostNames: { a: hostAName.trim() || DEFAULT_HOST_A_NAME, b: hostBName.trim() || DEFAULT_HOST_B_NAME },
         }),
       });
       if (!tRes.ok) {
@@ -460,6 +466,36 @@ export default function Home() {
         [speaker]: defaultVoiceFor(speaker, transcript.speakers),
       }));
     }
+  };
+
+  const renameSpeaker = (oldName: string, newName: string) => {
+    if (!transcript) return;
+    if (oldName === newName) return;
+    setTranscript((prev) =>
+      prev
+        ? {
+            ...prev,
+            speakers: prev.speakers.map((s) => (s === oldName ? newName : s)),
+            utterances: prev.utterances.map((u) =>
+              u.speaker === oldName ? { ...u, speaker: newName } : u,
+            ),
+          }
+        : prev,
+    );
+    setCast((prev) => {
+      if (!(oldName in prev)) return prev;
+      const next = { ...prev };
+      next[newName] = next[oldName];
+      delete next[oldName];
+      return next;
+    });
+    setCustomVoices((prev) => {
+      if (!(oldName in prev)) return prev;
+      const next = { ...prev };
+      next[newName] = next[oldName];
+      delete next[oldName];
+      return next;
+    });
   };
 
   const editTitle = (title: string) => {
@@ -694,6 +730,7 @@ export default function Home() {
             onNarratorChange={setNarrator}
             onCloneRequest={cloneVoice}
             onClearClone={clearClone}
+            onRenameSpeaker={renameSpeaker}
           />
         </section>
       )}
@@ -719,6 +756,43 @@ export default function Home() {
               </button>
             ))}
           </div>
+
+          {mode === "podcast" && (
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-3 space-y-2">
+              <div className="text-xs text-zinc-400">Host names</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-emerald-400">
+                    Lead (teacher)
+                  </label>
+                  <input
+                    type="text"
+                    value={hostAName}
+                    onChange={(e) => setHostAName(e.target.value)}
+                    placeholder={DEFAULT_HOST_A_NAME}
+                    className="mt-1 w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-emerald-400">
+                    Co-host (curious)
+                  </label>
+                  <input
+                    type="text"
+                    value={hostBName}
+                    onChange={(e) => setHostBName(e.target.value)}
+                    placeholder={DEFAULT_HOST_B_NAME}
+                    className="mt-1 w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-zinc-500">
+                These names go straight into the script. Default matches the
+                two voices: <span className="text-zinc-300">{DEFAULT_HOST_A_NAME}</span> and{" "}
+                <span className="text-zinc-300">{DEFAULT_HOST_B_NAME}</span>.
+              </p>
+            </div>
+          )}
 
           <textarea
             value={guide}

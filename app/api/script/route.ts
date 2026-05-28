@@ -20,6 +20,7 @@ type Body = {
   clawsOut?: number;
   model?: string;
   byoKeys?: BYOKeys;
+  hostNames?: { a: string; b: string };
 };
 
 const ENCODER = new TextEncoder();
@@ -36,12 +37,14 @@ export async function POST(req: NextRequest) {
   provider = modelByoProvider(def);
 
   const clawsOut = Math.max(0, Math.min(10, body.clawsOut ?? 3));
+  const hostNames = body.hostNames ?? { a: "Rachel", b: "Adam" };
   const prompt = scriptPrompt(
     body.transcript,
     body.mode,
     body.guide,
     body.transcript.speakers,
     clawsOut,
+    hostNames,
   );
 
   const stream = new ReadableStream({

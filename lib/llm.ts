@@ -168,6 +168,8 @@ export async function callLLM(opts: {
   }
 }
 
+export type HostNames = { a: string; b: string };
+
 export async function* streamScript(opts: {
   model: string;
   prompt: string;

@@ -92,6 +92,7 @@ export function scriptPrompt(
   guide: string | undefined,
   speakerLabels: string[],
   clawsOut: number,
+  hostNames: { a: string; b: string } = { a: "Rachel", b: "Adam" },
 ): string {
   const guideBlock = guide?.trim()
     ? `\nUSER GUIDANCE (treat as a director's note):\n${guide.trim()}\n`
@@ -166,7 +167,11 @@ Return ONLY valid JSON in this shape:
 SOURCE CONTENT (what the hosts are discussing — could be a chat, a meeting transcript, a document, an article, anything):
 ${transcriptBlock(transcript)}
 
-YOUR HOSTS (the only speakers in the output): HOST_A, HOST_B
+YOUR HOSTS — the ONLY speakers in the output:
+- ${hostNames.a} (lead / teacher)
+- ${hostNames.b} (curious learner)
+
+Use "${hostNames.a}" and "${hostNames.b}" as the speaker labels in your JSON output. Do NOT use HOST_A / HOST_B / Speaker 1 / Speaker 2 — use the actual names.
 
 ${tone}
 ${guideBlock}
@@ -175,16 +180,17 @@ ${SHARED_RULES}
 MODE: PODCAST
 
 HOST DYNAMIC (this is the engine of the episode — get it right):
-- HOST_A is the LEAD / TEACHER. They've actually read the source and walk the audience through it. They land the anecdotes, analogies, and specific images. They drive each beat forward.
-- HOST_B is the CURIOUS LEARNER. They haven't read the source — they're hearing it for the first time alongside the listener. They react ("Wait, so they actually..."), ask confirmation questions ("So just to make sure I'm with you here..."), occasionally pull the conversation toward a wild but relevant tangent, get visibly excited or confused.
+- ${hostNames.a} is the LEAD / TEACHER. They've actually read the source and walk the audience through it. They land the anecdotes, analogies, and specific images. They drive each beat forward.
+- ${hostNames.b} is the CURIOUS LEARNER. They haven't read the source — they're hearing it for the first time alongside the listener. They react ("Wait, so they actually..."), ask confirmation questions ("${hostNames.a}, just to make sure I'm with you here..."), occasionally pull the conversation toward a wild but relevant tangent, get visibly excited or confused.
 - Resist making the hosts equally smart-sounding — that produces flat ping-pong dialogue. The asymmetry is what creates natural information flow.
-- For non-conversational sources (an article, a doc), HOST_A summarizes the key claims while HOST_B's reactions land the human angle.
+- For non-conversational sources (an article, a doc), ${hostNames.a} summarizes the key claims while ${hostNames.b}'s reactions land the human angle.
 
 DIALOGUE RULES:
 - Hand off frequently. Each host's turn is 1-3 sentences before the other picks up. Avoid monologues.
+- Hosts address each other by name regularly ("So ${hostNames.b}, when you think about this..." / "${hostNames.a}, did you catch the part where..."). Real cohosts do this constantly.
 - Hosts quote real participants by name when the source contains speakers: "And then Sarah goes, quote, [exact words]." Real quotes are the most powerful tool you have — use them.
 - Build at least one moment of productive disagreement. Hosts don't have to agree on everything — that's boring. Land the disagreement, then converge to a shared point.
-- HOST_A opens with a cold open per SHARED_RULES — the bit itself, never "Okay so today...". HOST_B joins within ~20 seconds with a reaction or a question.
+- ${hostNames.a} opens with a cold open per SHARED_RULES — the bit itself, never "Okay so today...". ${hostNames.b} joins within ~20 seconds with a reaction or a question.
 - Target output: 1000-2000 spoken words (~7-13 minutes).
 - Close on a sharp line per SHARED_RULES — sharpest quote, callback, or image from the source. No hedged "He's not wrong" / "The takeaway is" wrap-ups.
 
@@ -193,7 +199,7 @@ Return ONLY valid JSON in this shape:
   "title": "Episode title",
   "showNotes": "2-4 sentence description",
   "lines": [
-    { "speaker": "HOST_A" or "HOST_B", "text": "the spoken line" }
+    { "speaker": "${hostNames.a}" or "${hostNames.b}", "text": "the spoken line" }
   ]
 }`;
 }

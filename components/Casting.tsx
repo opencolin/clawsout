@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { SpeakerCast, Voice } from "@/lib/types";
 import type { ClonedVoice } from "@/lib/voice-cloning";
 import type { UserVoice } from "@/lib/elevenlabs";
@@ -61,6 +62,7 @@ export default function Casting({
   onNarratorChange,
   onCloneRequest,
   onClearClone,
+  onRenameSpeaker,
 }: {
   speakers: string[];
   cast: SpeakerCast;
@@ -72,6 +74,7 @@ export default function Casting({
   onNarratorChange: (voiceId: string) => void;
   onCloneRequest: (speaker: string, file: File) => void;
   onClearClone: (speaker: string) => void;
+  onRenameSpeaker: (oldName: string, newName: string) => void;
 }) {
   const handlePick = (speaker: string, file: File | null) => {
     if (!file) return;
@@ -95,9 +98,10 @@ export default function Casting({
               key={speaker}
               className="flex items-center gap-3"
             >
-              <div className="text-sm text-zinc-200 font-medium truncate w-32 shrink-0">
-                {speaker}
-              </div>
+              <SpeakerNameInput
+                value={speaker}
+                onCommit={(newName) => onRenameSpeaker(speaker, newName)}
+              />
               <div className="flex-1 min-w-0 flex items-center gap-2">
                 {cloned ? (
                   <div className="flex-1 flex items-center justify-between bg-emerald-500/10 border border-emerald-500/40 rounded px-3 py-1.5 text-sm">
@@ -171,8 +175,46 @@ export default function Casting({
         <strong className="text-zinc-400">Voice cloning:</strong> upload a clean
         30–60 second audio sample for any speaker and ElevenLabs will create an
         instant voice clone for them. Best with mono speech, no music or
-        background noise.
+        background noise.{" "}
+        <strong className="text-zinc-400">Rename a speaker</strong> by clicking
+        their name — useful for anonymized labels like &ldquo;Speaker
+        Zero&rdquo;.
       </p>
     </div>
+  );
+}
+
+function SpeakerNameInput({
+  value,
+  onCommit,
+}: {
+  value: string;
+  onCommit: (newName: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== value) onCommit(trimmed);
+    else setDraft(value);
+  };
+
+  return (
+    <input
+      type="text"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") {
+          setDraft(value);
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+      className="text-sm text-zinc-200 font-medium truncate w-32 shrink-0 bg-transparent border-b border-transparent focus:border-emerald-500 focus:outline-none hover:border-zinc-700 transition-colors px-1 -ml-1"
+      aria-label="speaker name"
+      title="Click to rename"
+    />
   );
 }
