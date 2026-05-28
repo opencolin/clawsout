@@ -31,6 +31,9 @@ import ResearchDisplay, {
   EMPTY_RESEARCH_STATE,
   type ResearchState,
 } from "@/components/ResearchDisplay";
+import SavedPodcasts, {
+  rememberSavedPodcast,
+} from "@/components/SavedPodcasts";
 import type { UserVoice } from "@/lib/elevenlabs";
 import type {
   ResearchAngle,
@@ -314,6 +317,13 @@ export default function Home() {
   const [streamingScript, setStreamingScript] =
     useState<PartialScriptObject | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<
+    | { phase: "idle" }
+    | { phase: "saving" }
+    | { phase: "saved"; slug: string; publicUrl: string }
+    | { phase: "failed"; message: string }
+  >({ phase: "idle" });
+  const [shareCopied, setShareCopied] = useState(false);
   const [byoKeys, setByoKeys] = useState<BYOKeys>({});
   const [creditPrompt, setCreditPrompt] = useState<CreditPrompt | null>(null);
   const [customVoices, setCustomVoices] = useState<Record<string, ClonedVoice>>(
@@ -675,6 +685,96 @@ export default function Home() {
     });
   };
 
+  const savePodcast = async () => {
+    if (!audioUrl || !script || !transcript) return;
+    setSaveState({ phase: "saving" });
+    try {
+      const audioRes = await fetch(audioUrl);
+      const audioBlob = await audioRes.blob();
+      const audioFile = new File([audioBlob], `${script.title}.mp3`, {
+        type: "audio/mpeg",
+      });
+
+      const sourceExcerpt = transcript.utterances
+        .slice(0, 10)
+        .map((u) => `${u.speaker}: ${u.text}`)
+        .join("\n")
+        .slice(0, 2000);
+
+      const metadata = {
+        title: script.title,
+        showNotes: script.showNotes,
+        lines: script.lines,
+        mode,
+        clawsOut,
+        model,
+        hostNames: {
+          a: hostAName.trim() || DEFAULT_HOST_A_NAME,
+          b: hostBName.trim() || DEFAULT_HOST_B_NAME,
+        },
+        cast,
+        narratorVoiceId: narrator,
+        research:
+          researchState?.findings && researchState.findings.length > 0
+            ? researchState.findings
+            : undefined,
+        sourceExcerpt,
+        sourceFormat: transcript.source,
+        speakerCount: transcript.speakers.length,
+        utteranceCount: transcript.utterances.length,
+      };
+
+      const form = new FormData();
+      form.append("audio", audioFile);
+      form.append("metadata", JSON.stringify(metadata));
+
+      const res = await fetch("/api/podcasts", {
+        method: "POST",
+        body: form,
+      });
+      const data = (await res.json()) as {
+        slug?: string;
+        publicUrl?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.slug || !data.publicUrl) {
+        setSaveState({
+          phase: "failed",
+          message: data.error || `save failed (${res.status})`,
+        });
+        return;
+      }
+
+      rememberSavedPodcast({
+        slug: data.slug,
+        title: script.title,
+        savedAt: new Date().toISOString(),
+      });
+      setSaveState({
+        phase: "saved",
+        slug: data.slug,
+        publicUrl: data.publicUrl,
+      });
+    } catch (e: unknown) {
+      setSaveState({
+        phase: "failed",
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  };
+
+  const copyShareLink = async () => {
+    if (saveState.phase !== "saved") return;
+    const url = `${window.location.origin}${saveState.publicUrl}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const regenerateAudio = () => {
     if (!script) return;
     void generate(undefined, script);
@@ -711,6 +811,7 @@ export default function Home() {
     setCustomVoices({});
     setCloningSpeaker(null);
     setResearchState(null);
+    setSaveState({ phase: "idle" });
     setPhase("idle");
     if (audioBlobUrlRef.current) {
       URL.revokeObjectURL(audioBlobUrlRef.current);
@@ -739,13 +840,16 @@ export default function Home() {
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-6 py-10 sm:py-16 space-y-10">
-      <header>
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight flex items-center gap-2">
-          <span className="text-emerald-400">claws</span>out
-        </h1>
-        <p className="text-sm text-zinc-400 mt-1">
-          Turn any content — chats, docs, articles, audio — into a realistic podcast. With a comedy dial that goes claws out.
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight flex items-center gap-2">
+            <span className="text-emerald-400">claws</span>out
+          </h1>
+          <p className="text-sm text-zinc-400 mt-1">
+            Turn any content — chats, docs, articles, audio — into a realistic podcast. With a comedy dial that goes claws out.
+          </p>
+        </div>
+        <SavedPodcasts />
       </header>
 
       {!transcript && (
@@ -1134,7 +1238,7 @@ export default function Home() {
           {audioUrl && script && transcript && (
             <>
               <Player src={audioUrl} filename={script.title} />
-              <div className="flex items-center gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-3 text-xs">
                 <button
                   onClick={regenerateAudio}
                   disabled={busy}
@@ -1144,10 +1248,70 @@ export default function Home() {
                     ? "Re-synthesizing…"
                     : "↻ Regenerate audio with edits"}
                 </button>
+                {saveState.phase === "idle" || saveState.phase === "failed" ? (
+                  <button
+                    onClick={savePodcast}
+                    disabled={busy}
+                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-medium rounded"
+                  >
+                    Save &amp; share
+                  </button>
+                ) : null}
+                {saveState.phase === "saving" && (
+                  <span className="text-zinc-400 flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Saving…
+                  </span>
+                )}
                 <span className="text-zinc-500">
                   Edits to the script above don&apos;t affect the player until you regenerate.
                 </span>
               </div>
+
+              {saveState.phase === "saved" && (
+                <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-lg p-3 space-y-2">
+                  <div className="text-xs uppercase tracking-wider text-emerald-300 font-medium">
+                    Saved
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={
+                        typeof window !== "undefined"
+                          ? `${window.location.origin}${saveState.publicUrl}`
+                          : saveState.publicUrl
+                      }
+                      onFocus={(e) => e.currentTarget.select()}
+                      className="flex-1 min-w-0 bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 text-xs font-mono text-zinc-200"
+                    />
+                    <button
+                      onClick={copyShareLink}
+                      className={`px-3 py-1.5 rounded text-xs font-medium border ${
+                        shareCopied
+                          ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
+                          : "border-zinc-800 hover:border-emerald-500/50 text-zinc-300"
+                      }`}
+                    >
+                      {shareCopied ? "✓ Copied" : "Copy"}
+                    </button>
+                    <a
+                      href={saveState.publicUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 border border-zinc-800 hover:border-zinc-600 rounded text-xs text-zinc-300"
+                    >
+                      Open ↗
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {saveState.phase === "failed" && (
+                <div className="bg-red-900/30 border border-red-700 rounded-lg p-3 text-xs text-red-200">
+                  Save failed: {saveState.message}
+                </div>
+              )}
               <PostProduction
                 audioUrl={audioUrl}
                 title={script.title}
