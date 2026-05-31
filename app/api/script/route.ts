@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { scriptPrompt } from "@/lib/prompts";
+import { planBeatSheet, formatBeatSheet } from "@/lib/structure";
 import {
   streamScript,
   DEFAULT_MODEL,
@@ -8,7 +9,7 @@ import {
   modelByoProvider,
   type BYOKeys,
 } from "@/lib/llm";
-import type { ProductionMode, Transcript } from "@/lib/types";
+import type { HostFrame, ProductionMode, Transcript } from "@/lib/types";
 import type { ResearchFinding } from "@/lib/research";
 
 export const runtime = "nodejs";
@@ -23,6 +24,8 @@ type Body = {
   byoKeys?: BYOKeys;
   hostNames?: { a: string; b: string };
   research?: ResearchFinding[];
+  useBeatSheet?: boolean;
+  hostFrame?: HostFrame;
 };
 
 const ENCODER = new TextEncoder();
@@ -40,14 +43,36 @@ export async function POST(req: NextRequest) {
 
   const clawsOut = Math.max(0, Math.min(10, body.clawsOut ?? 3));
   const hostNames = body.hostNames ?? { a: "Rachel", b: "Adam" };
+
+  // Two-pass: optional beat sheet planning before dialogue writing
+  let beatSheetBlock = "";
+  if (body.useBeatSheet !== false && body.mode === "documentary") {
+    const sourceText = body.transcript.utterances
+      .map((u) => `${u.speaker}: ${u.text}`)
+      .join("\n");
+    const bs = await planBeatSheet({
+      transcript: sourceText,
+      mode: body.mode,
+      clawsOut,
+      model: def.id,
+      byoKeys: body.byoKeys,
+    });
+    if (bs) beatSheetBlock = formatBeatSheet(bs);
+  }
+
+  const guide = beatSheetBlock
+    ? `BEAT SHEET (follow this arc — fill each beat with dialogue):\n${beatSheetBlock}\n\n${body.guide ?? ""}`
+    : body.guide;
+
   const prompt = scriptPrompt(
     body.transcript,
     body.mode,
-    body.guide,
+    guide,
     body.transcript.speakers,
     clawsOut,
     hostNames,
     body.research ?? [],
+    body.hostFrame,
   );
 
   const stream = new ReadableStream({

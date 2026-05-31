@@ -1,4 +1,4 @@
-import type { ProductionMode, Transcript } from "./types";
+import type { HostFrame, ProductionMode, Transcript } from "./types";
 import type { ResearchFinding } from "./research";
 
 function researchBlock(findings: ResearchFinding[] | undefined): string {
@@ -230,9 +230,14 @@ export function scriptPrompt(
   clawsOut: number,
   hostNames: { a: string; b: string } = { a: "Rachel", b: "Adam" },
   research: ResearchFinding[] = [],
+  hostFrame?: HostFrame,
 ): string {
   const guideBlock = guide?.trim()
     ? `\nUSER GUIDANCE (treat as a director's note from the user):\n${guide.trim()}\n`
+    : "";
+
+  const frameBlock = hostFrame && hostFrame.recurringQuestion
+    ? `\nYOUR RECURRING FRAME — apply this lens to THIS source:\nFrame name: "${hostFrame.name}"\nThe question you always ask: "${hostFrame.recurringQuestion}"\nYour angle: "${hostFrame.angle}"${hostFrame.signatureMove ? `\nSignature move: "${hostFrame.signatureMove}"` : ""}\n\nThe frame is a QUESTION to ask, never a conclusion to force. It bends to the source rather than overriding it. If the source does not support the frame's question, let the episode be smaller and honest.\n`
     : "";
 
   const tone = clawsOutBlock(clawsOut);
@@ -319,6 +324,7 @@ YOUR HOSTS — the ONLY speakers in the output:
 Use "${hostNames.a}" and "${hostNames.b}" as the speaker labels in your JSON output. Do NOT use HOST_A / HOST_B / Speaker 1 / Speaker 2.
 ${guideBlock}
 ${tone}
+${frameBlock}
 ${SHARED_RULES}
 
 MODE: PODCAST

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { synthesizeLine, concatMp3, voiceSettingsFor } from "@/lib/tts";
+import { synthesizeLine, concatMp3WithBreaths, voiceSettingsFor } from "@/lib/tts";
 import { HOST_A_VOICE, HOST_B_VOICE, DEFAULT_NARRATOR_VOICE } from "@/lib/voices";
 import { classifyError, missingKeyError } from "@/lib/errors";
 
@@ -55,7 +55,10 @@ export async function POST(req: NextRequest) {
       buffers.push(audio);
     }
 
-    const merged = concatMp3(buffers);
+    const speakerChanges = body.lines.slice(0, -1).map((line, i) =>
+      line.speaker !== body.lines[i + 1].speaker
+    );
+    const merged = concatMp3WithBreaths(buffers, speakerChanges);
     return new NextResponse(merged, {
       status: 200,
       headers: {

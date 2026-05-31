@@ -183,3 +183,31 @@ export function concatMp3(buffers: ArrayBuffer[]): ArrayBuffer {
   }
   return out.buffer;
 }
+
+function generateSilence(durationMs: number): Uint8Array {
+  // Approximate: 128kbps MP3 = ~16000 bytes/sec
+  const bytes = Math.floor((durationMs / 1000) * 16000);
+  return new Uint8Array(bytes);
+}
+
+export function concatMp3WithBreaths(
+  buffers: ArrayBuffer[],
+  speakerChanges: boolean[],
+): ArrayBuffer {
+  const parts: Uint8Array[] = [];
+  for (let i = 0; i < buffers.length; i++) {
+    parts.push(new Uint8Array(buffers[i]));
+    if (i < buffers.length - 1) {
+      const ms = speakerChanges[i] ? 280 : 120;
+      parts.push(generateSilence(ms));
+    }
+  }
+  const total = parts.reduce((sum, p) => sum + p.byteLength, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const p of parts) {
+    out.set(p, offset);
+    offset += p.byteLength;
+  }
+  return out.buffer;
+}

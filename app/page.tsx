@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import type {
+  HostFrame,
   ProductionMode,
   Script,
   SpeakerCast,
   Transcript,
 } from "@/lib/types";
+import { STARTER_HOST_FRAMES } from "@/lib/types";
 import {
   autoCast,
   defaultVoiceFor,
@@ -305,6 +307,7 @@ export default function Home() {
   const [mode, setMode] = useState<ProductionMode>("podcast");
   const [hostAName, setHostAName] = useState(DEFAULT_HOST_A_NAME);
   const [hostBName, setHostBName] = useState(DEFAULT_HOST_B_NAME);
+  const [hostFrame, setHostFrame] = useState<HostFrame>(STARTER_HOST_FRAMES[3]);
   const [useResearch, setUseResearch] = useState(true);
   const [researchState, setResearchState] =
     useState<ResearchState | null>(null);
@@ -498,6 +501,8 @@ export default function Home() {
             byoKeys: keys,
             hostNames: { a: hostAName.trim() || DEFAULT_HOST_A_NAME, b: hostBName.trim() || DEFAULT_HOST_B_NAME },
             research: researchFindings,
+            useBeatSheet: mode === "documentary",
+            hostFrame: hostFrame.recurringQuestion ? hostFrame : undefined,
           }),
         });
 
@@ -1045,6 +1050,16 @@ export default function Home() {
                 two voices: <span className="text-zinc-300">{DEFAULT_HOST_A_NAME}</span> and{" "}
                 <span className="text-zinc-300">{DEFAULT_HOST_B_NAME}</span>.
               </p>
+            </div>
+          )}
+
+          {mode === "podcast" && (
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-3 space-y-2">
+              <div className="text-xs text-zinc-400">Show frame (optional)</div>
+              <select value={hostFrame.name} onChange={e => setHostFrame(STARTER_HOST_FRAMES.find(f => f.name === e.target.value) ?? STARTER_HOST_FRAMES[3])} className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-200 w-full">
+                {STARTER_HOST_FRAMES.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+              </select>
+              {hostFrame.recurringQuestion && <p className="text-[11px] text-zinc-500">{hostFrame.recurringQuestion}</p>}
             </div>
           )}
 
