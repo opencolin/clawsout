@@ -542,6 +542,7 @@ export default function Home() {
           narratorVoiceId: narrator,
           byoKey: keys.elevenlabs,
           hostNames: { a: hostAName.trim() || DEFAULT_HOST_A_NAME, b: hostBName.trim() || DEFAULT_HOST_B_NAME },
+          clawsOut,
         }),
       });
       if (!tRes.ok) {

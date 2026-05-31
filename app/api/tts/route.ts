@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { synthesizeLine, concatMp3 } from "@/lib/tts";
+import { synthesizeLine, concatMp3, voiceSettingsFor } from "@/lib/tts";
 import { HOST_A_VOICE, HOST_B_VOICE, DEFAULT_NARRATOR_VOICE } from "@/lib/voices";
 import { classifyError, missingKeyError } from "@/lib/errors";
 
@@ -12,6 +12,7 @@ type Body = {
   narratorVoiceId: string;
   byoKey?: string;
   hostNames?: { a: string; b: string };
+  clawsOut?: number;
 };
 
 export async function POST(req: NextRequest) {
@@ -35,6 +36,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "no lines to synthesize" }, { status: 400 });
     }
 
+    const voiceSettings = voiceSettingsFor(body.clawsOut ?? 5);
+
     const buffers: ArrayBuffer[] = [];
     for (const line of body.lines) {
       const voiceId = resolveVoice(
@@ -47,6 +50,7 @@ export async function POST(req: NextRequest) {
         apiKey,
         voiceId,
         text: line.text,
+        voiceSettings,
       });
       buffers.push(audio);
     }

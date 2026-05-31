@@ -69,11 +69,51 @@ export function stripAllTags(text: string): string {
     .trim();
 }
 
+export type VoiceSettings = {
+  stability: number;
+  similarity_boost: number;
+  style: number;
+  use_speaker_boost: boolean;
+};
+
+const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
+  stability: 0.5,
+  similarity_boost: 0.75,
+  style: 0.35,
+  use_speaker_boost: true,
+};
+
+export function voiceSettingsFor(level: number): VoiceSettings {
+  if (level <= 3) {
+    return {
+      stability: 0.68,
+      similarity_boost: 0.75,
+      style: 0.15,
+      use_speaker_boost: true,
+    };
+  }
+  if (level <= 7) {
+    return {
+      stability: 0.5,
+      similarity_boost: 0.75,
+      style: 0.35,
+      use_speaker_boost: true,
+    };
+  }
+  return {
+    stability: 0.35,
+    similarity_boost: 0.75,
+    style: 0.55,
+    use_speaker_boost: true,
+  };
+}
+
 async function callElevenTts(opts: {
   apiKey: string;
   voiceId: string;
   text: string;
   modelId: string;
+  voiceSettings?: VoiceSettings;
 }): Promise<Response> {
   return fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${opts.voiceId}`,
@@ -87,12 +127,7 @@ async function callElevenTts(opts: {
       body: JSON.stringify({
         text: opts.text,
         model_id: opts.modelId,
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75,
-          style: 0.35,
-          use_speaker_boost: true,
-        },
+        voice_settings: opts.voiceSettings || DEFAULT_VOICE_SETTINGS,
       }),
     },
   );
@@ -102,6 +137,7 @@ export async function synthesizeLine(opts: {
   apiKey: string;
   voiceId: string;
   text: string;
+  voiceSettings?: VoiceSettings;
 }): Promise<ArrayBuffer> {
   const cleaned = stripUnsupportedTags(opts.text);
 
@@ -110,6 +146,7 @@ export async function synthesizeLine(opts: {
     voiceId: opts.voiceId,
     text: cleaned,
     modelId: ELEVEN_TTS_MODEL,
+    voiceSettings: opts.voiceSettings,
   });
 
   if (res.status === 400 || res.status === 404) {
@@ -124,6 +161,7 @@ export async function synthesizeLine(opts: {
         voiceId: opts.voiceId,
         text: stripped,
         modelId: ELEVEN_FALLBACK_MODEL,
+        voiceSettings: opts.voiceSettings,
       });
     }
   }

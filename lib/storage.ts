@@ -6,6 +6,7 @@ export type PodcastRecord = {
   title: string;
   showNotes: string;
   lines: { speaker: string; text: string }[];
+  drivingQuestion?: string;
   audioUrl: string;
   savedAt: string;
 
