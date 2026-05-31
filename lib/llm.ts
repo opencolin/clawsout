@@ -20,6 +20,7 @@ export const ScriptSchema = z.object({
       text: z.string().describe("The spoken line, written for the ear"),
     }),
   ),
+  drivingQuestion: z.string().optional(),
 });
 
 export type ScriptObject = z.infer<typeof ScriptSchema>;
@@ -27,6 +28,7 @@ export type PartialScriptObject = {
   title?: string;
   showNotes?: string;
   lines?: { speaker?: string; text?: string }[];
+  drivingQuestion?: string;
 };
 
 const TOKEN_FACTORY_BASE_URL = "https://api.tokenfactory.nebius.com/v1";

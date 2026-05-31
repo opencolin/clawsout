@@ -5,13 +5,20 @@ function researchBlock(findings: ResearchFinding[] | undefined): string {
   if (!findings || findings.length === 0) return "";
   const sections = findings.map((f, i) => {
     const sources = f.sources.length
-      ? `Sources cited:\n${f.sources
-          .map((s) => `  • ${s.title} — ${s.url}`)
+      ? `CITED SOURCES (verifiable):\n${f.sources
+          .map((s) =>
+            `  • ${s.title} — ${s.url}${
+              s.snippet ? `\n    "${s.snippet}"` : ""
+            }`,
+          )
           .join("\n")}`
       : "";
+    const summary = `AUTO-SUMMARY (unverified — context only, never the sole basis for a stated fact):\n${
+      f.answer || "(no summary)"
+    }`;
     return `Angle ${i + 1} — ${f.label} (query: "${f.query}"):
-${f.answer || "(no summary)"}
-${sources}`.trim();
+${sources}
+${summary}`.trim();
   });
   return `
 ═══════════════════════════════════════════════════════════════
@@ -24,6 +31,7 @@ RULES:
 - Prefer the SOURCE when research and source conflict.
 - Hosts may reference research findings ("Some folks in this space have argued that…") but should NOT pretend to have personally read or watched the cited material.
 - Treat research as background reading the producer did, not as lived experience.
+- Any outside fact a host states must trace to one of the CITED SOURCES above, not to the AUTO-SUMMARY. If only the auto-summary supports it, soften to attributed opinion ("reporting in this space suggests...")
 ═══════════════════════════════════════════════════════════════
 
 ${sections.join("\n\n")}
@@ -115,6 +123,17 @@ ANECDOTES & ANALOGIES (the line that sticks):
 - Lead with the image. "It's like..." or "Picture this..." are your friends.
 - Never invent specific facts. If you need a comparison for clarity, attribute it to "anyone who's ever..." not to the host's life.
 
+THE SPECIFIC IS FUNNIER THAN THE SNARKY:
+- The funniest line is almost always the most absurdly SPECIFIC real detail delivered deadpan. The literal file named DO_NOT_SHIP, the meeting that ran ninety minutes to decide on a font, the variable someone called "temporary" in 2019.
+- Deliver the specific real detail flat and let it sit. Do NOT smooth a hyperspecific real noun into a vague summary ("they had some issues"). Do NOT explain why it is funny — saying the specific real thing IS the joke.
+- This applies at ALL levels: specificity is how curiosity and comedy both land. "They filed a patent" is nothing. "They filed a patent for a rubber duck they'd been selling for eight years" stops the listener.
+
+DRIVING QUESTION:
+- Before writing any line, identify the ONE real question this source leaves open that a listener would lean in to find out. This must be a question genuinely present in the source, not manufactured. For a mundane source, the question is a mundane-but-real curiosity ("which of the three options did they actually go with?"), not fake suspense.
+- Plant it within the first 60 seconds, right after the cold open and the Promise. Do NOT answer it immediately.
+- Return to it once in the middle of the episode.
+- Resolve or deliberately complicate it in the final 60 seconds so the close lands as payoff.
+
 COLD OPEN — start with the bit, not a welcome:
 - The first line is the most concrete, specific moment from the source — not a meta-introduction.
 - FORBIDDEN: "Okay so today...", "Today we have...", "Welcome back...", "In this episode...", "Today on the show...", "So I was reading...", "You're not gonna believe..."
@@ -168,12 +187,12 @@ TAGS: [laughs], [sighs], [pauses]; occasional [chuckles].`;
   }
   if (level <= 7) {
     return `${header}
-ENERGY: Sharp observational comedy. Reply All / Search Engine at their sharpest. The hosts find what's genuinely funny IN the source — they don't decorate mundane material with fake reactions. If the source isn't funny, the conversation is just engaged, not snarky.
+ENERGY: Sharp observational comedy. Reply All / Search Engine at their sharpest. The hosts find what's genuinely funny IN the source — they don't decorate mundane material with fake reactions. If the source isn't funny, the conversation is just engaged, not snarky. Sharp means drier and more specific about real details — not more reaction tags.
 TAGS: [chuckles], [snorts], [sighs], [sarcastic] (used sparingly and earned).`;
   }
   if (level <= 9) {
     return `${header}
-ENERGY: Comedic and pointed. Quick, sharp lines about real moments in the source. Hard Fork at its driest. Still: the bar is REAL absurdity, not manufactured drama. If the source is straightforward, the hosts are still grounded — just sharper in delivery when something genuine pops.
+ENERGY: Comedic and pointed. Quick, sharp lines about real moments in the source. Hard Fork at its driest. Still: the bar is REAL absurdity, not manufactured drama. If the source is straightforward, the hosts are still grounded — just sharper in delivery when something genuine pops. Sharp comedy at this level means finding the one ridiculous TRUE noun in the source and saying it deadpan — not performing reactions.
 TAGS: [chuckles], [snorts], [gasps], [sighs], [sarcastic] where real moments earn them.`;
   }
   return `${header}
@@ -228,6 +247,7 @@ Return ONLY valid JSON in this shape:
 {
   "title": "Episode title (short, evocative, no clickbait)",
   "showNotes": "2-4 sentence description with the key beats",
+  "drivingQuestion": "the one real question from the source the episode answers",
   "lines": [
     { "speaker": "NARRATOR" or one of the speaker names, "text": "the spoken line" }
   ]
@@ -260,6 +280,7 @@ Return ONLY valid JSON in this shape:
 {
   "title": "Episode title",
   "showNotes": "2-4 sentence description",
+  "drivingQuestion": "the one real question from the source the episode answers",
   "lines": [
     { "speaker": "NARRATOR" or one of the speaker names, "text": "the spoken line" }
   ]
@@ -316,6 +337,7 @@ Return ONLY valid JSON in this shape:
 {
   "title": "Episode title — concrete, specific, no clickbait",
   "showNotes": "2-4 sentences describing what listeners will learn or experience",
+  "drivingQuestion": "the one real question from the source the episode answers",
   "lines": [
     { "speaker": "${hostNames.a}" or "${hostNames.b}", "text": "the spoken line" }
   ]
