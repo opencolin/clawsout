@@ -64,6 +64,8 @@ MASTER RULES — read these FIRST. They override everything below.
    - "It's giving..." (as in "it's giving roast podcast")
    - DO NOT pepper dialogue with "wild" or "crazy" or "insane" as generic punctuation.
 
+6. QUOTE INTEGRITY: The word "quote" may only precede words that literally appear in the SOURCE attributed to the real speaker. Research findings are paraphrased and hedged, never quoted. Fabricated speech attributed to a real person breaks master rule 1 ("never say something about them you would not say to their face").
+
 WHAT MAKES AN EPISODE WORTH LISTENING TO:
 A working episode does at least THREE of these five things:
 1. Has a clear, single-sentence concept ("a guy spent his weekend tricking his AI into not breaking itself").
@@ -85,7 +87,9 @@ WRITING FOR THE EAR:
 - No headers, bullets, stage directions, or markdown — only spoken dialogue.
 - Numbers and acronyms: spell out anything that would sound odd ("two thousand twenty-five" not "2025" when context demands).
 - Never invent facts not in the source. If a fact is needed for cohesion, attribute it to the source speaker or skip it.
-- ATTRIBUTION BEFORE QUOTES, IN PRESENT TENSE: "Sarah says, quote, ..." — never "..., said Sarah." Listeners need the speaker before the words.
+- ATTRIBUTION BEFORE QUOTES, IN PRESENT TENSE: place the speaker's name before any quote, in present tense: "Sarah says..." — never "..., said Sarah." Use the person's name after any gap of more than two sentences.
+- VERBATIM QUOTES ONLY: the word "quote" may ONLY precede words that appear verbatim (allowing light trimming of filler, never adding words) in the SOURCE, attributed to the real speaker who said them. If you cannot find the exact words in the source, summarize in the host's own voice WITHOUT the word "quote" — never fabricate quoted speech.
+- RESEARCH IS NEVER A QUOTE: information from the research block must be paraphrased and hedged ("reporting in this space suggests...", "some observers have argued..."). Never render research findings as a named source participant's exact words, and never attribute a research paraphrase to a real person in the source.
 - Use proper names after any gap of more than two sentences — listeners can't scan back to remember who "he" is.
 
 CRAFT — borrowed from the best:
@@ -101,6 +105,9 @@ AUDIO TAG VOCABULARY (only these — the TTS performs them as sound; any other b
 - Emotion (used very sparingly): [calm], [sarcastic], [serious]
 - Cap at roughly one tag per 4-6 spoken lines. A podcast peppered with tags sounds robotic.
 - TAG ASYMMETRY: the lead/teacher voice stays cleaner — mostly [pauses], occasional [laughs]. The reactor/learner carries the texture — [chuckles], [snorts], [sighs]. Mirrors real-cohost labor division.
+- TAG PLACEMENT (critical for ElevenLabs v3): emotion and pace tags ([calm], [sarcastic], [serious], [slowly], [quickly]) MUST go at the START of the line they modify, before the first word. A trailing tag after the line colors nothing — v3 reads ahead, not behind. Example: "[sarcastic] Sure, that'll work." not "Sure, that'll work [sarcastic]."
+- PAUSE-AS-PUNCTUATION: [pauses] and [long pause] are your most powerful tools — use them. Place them immediately BEFORE the reveal, the name, the number, the turn: they create lean-in. NEVER place a pause AFTER a punchline — the silence after a joke belongs to the listener's laugh, not the script. Heavyweight and Radiolab are built on the held pause placed before the gut-punch.
+- ONE TAG PER LINE MAXIMUM: place at most ONE audio tag per line. Two tags on a single isolated TTS call fight each other and the second usually dominates or both wash out. Choose the tag that matters most for that line and drop the rest.
 - DO NOT invent visual cues like [eye-roll], [chef's kiss], [stage whisper], [dramatic pause], [mock indignation]. They get read aloud literally.
 
 ANECDOTES & ANALOGIES (the line that sticks):
@@ -113,6 +120,8 @@ COLD OPEN — start with the bit, not a welcome:
 - FORBIDDEN: "Okay so today...", "Today we have...", "Welcome back...", "In this episode...", "Today on the show...", "So I was reading...", "You're not gonna believe..."
 - GOOD example: "A guy spent his weekend writing a configuration file to stop his AI from thinking it was attacking itself. He's calling this Tuesday."
 - BAD example: "Okay so today we have a man who built fourteen things."
+- THE PROMISE: within the first ~20 seconds, immediately after the opening image, the lead host plants ONE specific, real forward-looking stake — an open question from the source (e.g. "...and the part nobody could agree on was whether it would even ship."). This is not a topic announcement. FORBIDDEN promise phrasing: "and that raises a bigger question", "stick around", "you'll want to hear this", "buckle up", "we have a lot to get into."
+- RUNNERS & CALLBACKS: within the first two minutes, plant ONE vivid, real detail from the source — an exact phrase someone said, an absurd real noun, a memorable number. Name it once, plainly, and move on. Then bring it back EXACTLY ONCE near the close, slightly recontextualized. Never flag the callback ("remember when we said...") — just reuse the exact phrase and trust the listener. The callback must be a real source detail, never invented.
 
 DON'T RESTATE THE JOKE:
 - If a line lands a beat, the next line MOVES ON. Never paraphrase what just happened.
@@ -122,6 +131,9 @@ CLOSE ON A LINE, NOT A LECTURE:
 - The final 30 seconds use the sharpest line, image, or callback from the source — not a balanced wrap-up.
 - FORBIDDEN closing patterns: "He's not wrong that X, but Y...", "On one hand... on the other hand...", "The takeaway is...", "What this really shows is...", "I think it's this..."
 - End on a concrete image or a clean line.
+
+SELF-REVISION GATE (do this silently before emitting JSON):
+Re-read your completed line sequence. For each adjacent pair of beats, name the connector: is it BUT (a complication that reacts to the previous beat), THEREFORE (a consequence that flows from it), or AND-THEN (mere sequence with no causal link)? Every AND-THEN is a structural defect — rewrite the second beat so it either complicates or pays off the first. Do not output the audit or any intermediate reasoning. Output ONLY the repaired script as valid JSON.
 `;
 
 export function clawsOutLabel(level: number): string {
