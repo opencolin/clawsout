@@ -4,23 +4,23 @@
 
 This file is the heartbeat of the agent loop. Each tick writes a status block here so the next agent can continue without re-reasoning.
 
-## Latest tick
+## GOAL COMPLETE ✅
 
-**Tick 5** — v1.2+v1.3 shipped, v1.4 in flight:
-- **v1.2 SHIPPED** to main (PR #1, 147e953)
-- **v1.3 SHIPPED** to main (PR #2, 02b4cd2)
-- Worktree `../clawsout-v1.4` on branch `release/v1.4` created
-- v1.4 implementation workflow `wf_8d28344d-512` running — premise-first, HOST_B reactor, contradiction classifier
-- Waiting for task-notification
+All four releases shipped to main.
+| Release | PR | Commit | What shipped |
+|---|---|---|---|
+| v1.2 | #1 | 147e953 | A/B/T gate, Promise Line + callback, verbatim-quote rule, audio tag placement |
+| v1.3 | #2 | 02b4cd2 | Specificity-is-the-joke, driving question field, research snippet sourcing, voice physics curve |
+| v1.4 | #3 | 78ffd3e | Premise-first generation, HOST_B deadpan reactor, contradiction classifier |
+| v2.0 | #4 | a1bb743 | Beat sheet engine, inter-line breath, persistent host frame |
 
-## Pending actions
+## What the next agent should know
 
-1. ~~v1.2~~ → SHIPPED ✅
-2. ~~v1.3~~ → SHIPPED ✅
-3. ~~Create v1.4 worktree~~ → DONE (`../clawsout-v1.4`, `release/v1.4`)
-4. **Waiting for**: `wf_8d28344d-512` (v1.4 implementation)
-5. When done: push release/v1.4, open+merge PR #3 to main
-6. Create `../clawsout-v2.0` worktree, implement v2.0 (4 big items)
+- All four worktrees (`clawsout-v1.2` through `clawsout-v2.0`) can be cleaned up: `git worktree remove ../clawsout-v1.X`
+- The v2.0 silence approximation uses zero-byte arrays (not real MP3 frames). A frame-accurate silent MP3 implementation is a clean v2.1 follow-up — see COUNCIL_NOTES.md.
+- The beat sheet is currently gated to Documentary mode only. Enabling it for Podcast/Reenactment is a one-line change in `app/api/script/route.ts`.
+- HOST_B deadpan reactor activates at Claws-Out level 6+.
+- Persistent host frame: 4 presets in `lib/types.ts`, defaults to "No Frame."
 
 ## What the next agent should do
 
