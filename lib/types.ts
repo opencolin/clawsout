@@ -59,3 +59,34 @@ export type GenerateRequest = {
   narratorVoiceId: string;
   model: string;
 };
+
+export type HostFrame = {
+  name: string;
+  recurringQuestion: string;
+  angle: string;
+  signatureMove?: string;
+};
+
+export const STARTER_HOST_FRAMES: HostFrame[] = [
+  {
+    name: "The Decision Lens",
+    recurringQuestion: "What was the one decision everyone treated as obvious but wasn't?",
+    angle: "Every episode hunts for the moment where a choice was made — and why it was made that way instead of another.",
+    signatureMove: "End every episode with the hosts naming the decision they'd have made differently.",
+  },
+  {
+    name: "The Gap Detector",
+    recurringQuestion: "What did everyone in this source know but not say?",
+    angle: "Look for the unstated assumption, the gap between what people wrote and what they did, the thing everyone saw but nobody flagged.",
+  },
+  {
+    name: "The Human Cost",
+    recurringQuestion: "Who bore the cost of this, and were they the ones who decided?",
+    angle: "Follow the impact to the people furthest from the decision. Name them, even if they appear only briefly.",
+  },
+  {
+    name: "No Frame",
+    recurringQuestion: "",
+    angle: "No recurring frame — each episode stands alone.",
+  },
+];
