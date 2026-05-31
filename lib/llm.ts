@@ -21,6 +21,7 @@ export const ScriptSchema = z.object({
     }),
   ),
   drivingQuestion: z.string().optional(),
+  premise: z.string().optional(),
 });
 
 export type ScriptObject = z.infer<typeof ScriptSchema>;
@@ -29,6 +30,7 @@ export type PartialScriptObject = {
   showNotes?: string;
   lines?: { speaker?: string; text?: string }[];
   drivingQuestion?: string;
+  premise?: string;
 };
 
 const TOKEN_FACTORY_BASE_URL = "https://api.tokenfactory.nebius.com/v1";
