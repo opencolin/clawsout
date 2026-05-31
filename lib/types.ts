@@ -47,6 +47,7 @@ export type Script = {
   showNotes: string;
   lines: ScriptLine[];
   drivingQuestion?: string;
+  premise?: string;
 };
 
 export type GenerateRequest = {

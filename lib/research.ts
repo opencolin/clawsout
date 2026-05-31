@@ -12,6 +12,7 @@ export type ResearchFinding = {
   query: string;
   answer: string;
   sources: { title: string; url: string; snippet: string }[];
+  tension?: { note: string; sourceClaim: string };
 };
 
 export type ResearchEvent =
@@ -127,7 +128,39 @@ export async function runResearch(opts: {
     }),
   );
 
-  return settled
+  const findings = settled
     .map((s) => (s.status === "fulfilled" ? s.value : null))
     .filter((f): f is ResearchFinding => f !== null);
+
+  // Classify for contradictions
+  if (findings.length > 0 && opts.source) {
+    const sourceExcerpt = opts.source.slice(0, 3000);
+    const findingsSummary = findings.map((f, i) =>
+      `Finding ${i+1} (${f.label}): ${f.answer.slice(0, 300)}`
+    ).join("\n\n");
+    try {
+      const raw = await callLLM({
+        model: opts.model || DEFAULT_MODEL,
+        prompt: `Does any research finding below materially contradict or complicate a specific claim in the source? Return JSON with a tensions array (max 2 items, each: { findingIndex: number, note: string, sourceClaim: string }). If no real contradiction exists, return { tensions: [] }. Bias strongly toward empty — only flag if there is a clear, citable, meaningful divergence. NEVER manufacture tension.\n\nSOURCE:\n${sourceExcerpt}\n\nRESEARCH FINDINGS:\n${findingsSummary}`,
+        byoKeys: opts.llmByoKeys,
+      });
+      const parsed = extractJson(raw) as {
+        tensions?: { findingIndex?: number; note?: string; sourceClaim?: string }[];
+      };
+      if (parsed && Array.isArray(parsed.tensions)) {
+        for (const t of parsed.tensions) {
+          if (typeof t.findingIndex === "number" && findings[t.findingIndex]) {
+            findings[t.findingIndex].tension = {
+              note: t.note ?? "",
+              sourceClaim: t.sourceClaim ?? "",
+            };
+          }
+        }
+      }
+    } catch {
+      // classifier failure is non-fatal — continue without tensions
+    }
+  }
+
+  return findings;
 }

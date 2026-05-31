@@ -20,6 +20,15 @@ function researchBlock(findings: ResearchFinding[] | undefined): string {
 ${sources}
 ${summary}`.trim();
   });
+  const tensions = findings.filter((f) => f.tension);
+  const tensionBlock = tensions.length > 0
+    ? `\nWHERE THE RECORD DIVERGES (handle with fair representation — not as a gotcha):\n${tensions
+        .map((f) => {
+          const t = f.tension!;
+          return `- ${f.label}: The source suggests "${t.sourceClaim}" — but research notes: "${t.note}". If relevant, name this divergence on-air attributed and even-handed ("the source frames it as X; some reporting elsewhere suggests Y — worth holding both"). Never use divergence to undercut the source subject. If it does not meaningfully serve the episode, skip it.`;
+        })
+        .join("\n")}\n`
+    : "";
   return `
 ═══════════════════════════════════════════════════════════════
 ADDITIONAL RESEARCH CONTEXT — three angles pulled from web search.
@@ -35,7 +44,7 @@ RULES:
 ═══════════════════════════════════════════════════════════════
 
 ${sections.join("\n\n")}
-`;
+${tensionBlock}`;
 }
 
 const MASTER_RULES = `
@@ -116,6 +125,7 @@ AUDIO TAG VOCABULARY (only these — the TTS performs them as sound; any other b
 - TAG PLACEMENT (critical for ElevenLabs v3): emotion and pace tags ([calm], [sarcastic], [serious], [slowly], [quickly]) MUST go at the START of the line they modify, before the first word. A trailing tag after the line colors nothing — v3 reads ahead, not behind. Example: "[sarcastic] Sure, that'll work." not "Sure, that'll work [sarcastic]."
 - PAUSE-AS-PUNCTUATION: [pauses] and [long pause] are your most powerful tools — use them. Place them immediately BEFORE the reveal, the name, the number, the turn: they create lean-in. NEVER place a pause AFTER a punchline — the silence after a joke belongs to the listener's laugh, not the script. Heavyweight and Radiolab are built on the held pause placed before the gut-punch.
 - ONE TAG PER LINE MAXIMUM: place at most ONE audio tag per line. Two tags on a single isolated TTS call fight each other and the second usually dominates or both wash out. Choose the tag that matters most for that line and drop the rest.
+- NO LAUGH TRACKS: a [laughs] or [chuckles] tag is NOT a substitute for a funny line. Never place a laugh tag immediately after a line that was not actually funny — that is a laugh track, the audio equivalent of canned applause. Earn the tag with the line, or cut the tag. If you find yourself adding a laugh tag to a line that does not have a real payoff, that is a signal to rewrite the line, not add the tag.
 - DO NOT invent visual cues like [eye-roll], [chef's kiss], [stage whisper], [dramatic pause], [mock indignation]. They get read aloud literally.
 
 ANECDOTES & ANALOGIES (the line that sticks):
@@ -133,6 +143,12 @@ DRIVING QUESTION:
 - Plant it within the first 60 seconds, right after the cold open and the Promise. Do NOT answer it immediately.
 - Return to it once in the middle of the episode.
 - Resolve or deliberately complicate it in the final 60 seconds so the close lands as payoff.
+
+PREMISE (commit to this before writing any line):
+- Before writing the first line, state — silently, in your head — ONE sentence that names what this episode ARGUES or REVEALS about the source. Not the events: the meaning. "This is a story about how optionality stops working when deadlines arrive" rather than "this episode covers a team's launch discussion."
+- Every segment in the episode must visibly serve this premise. If a beat doesn't connect to it, cut or reframe.
+- The closing line must pay off the premise's question — not just be a good line.
+- If the source is genuinely mundane and the honest premise is small, the episode stays small and grounded. A small true premise is better than a large false one.
 
 COLD OPEN — start with the bit, not a welcome:
 - The first line is the most concrete, specific moment from the source — not a meta-introduction.
@@ -248,6 +264,7 @@ Return ONLY valid JSON in this shape:
   "title": "Episode title (short, evocative, no clickbait)",
   "showNotes": "2-4 sentence description with the key beats",
   "drivingQuestion": "the one real question from the source the episode answers",
+  "premise": "one sentence naming what this episode argues or reveals",
   "lines": [
     { "speaker": "NARRATOR" or one of the speaker names, "text": "the spoken line" }
   ]
@@ -281,6 +298,7 @@ Return ONLY valid JSON in this shape:
   "title": "Episode title",
   "showNotes": "2-4 sentence description",
   "drivingQuestion": "the one real question from the source the episode answers",
+  "premise": "one sentence naming what this episode argues or reveals",
   "lines": [
     { "speaker": "NARRATOR" or one of the speaker names, "text": "the spoken line" }
   ]
@@ -309,6 +327,7 @@ HOST DYNAMIC:
 - ${hostNames.a} is the LEAD / CURATOR. They've read the source. They land the key beats with concrete specifics and real quotes. They drive each segment forward.
 - ${hostNames.b} is the AUDIENCE PROXY. They're hearing it for the first time. They react to genuinely surprising moments, ask clarifying questions ("Wait, so they decided to ship Friday — and the QA was where in this?"), and ask for concrete examples whenever ${hostNames.a} states a principle.
 - ${hostNames.b} is LICENSED to say "I don't know," "I'm not sure," "ask me again next week." This permission to be uncertain is the cure for textbook voice.
+- HOST_B also carries the single driest, funniest line in a beat — the flat understatement, the one-word reaction, the deadpan literal restatement that exposes how absurd the real thing is. The biggest laugh usually comes from HOST_B saying the quiet part plainly, not HOST_A performing. This deadpan reactor role activates at Claws-Out level 6 and above; below level 6 HOST_B stays purely in the curious-learner role.
 - The hosts have NO past, NO jobs, NO life experience. They are not characters with backstories — they are voices guiding the listener through the source. Never simulate lived experience.
 - The two hosts are NOT equally informed. If both hosts sound equally expert, the dialogue goes flat. ${hostNames.a} drives, ${hostNames.b} reacts.
 
@@ -338,6 +357,7 @@ Return ONLY valid JSON in this shape:
   "title": "Episode title — concrete, specific, no clickbait",
   "showNotes": "2-4 sentences describing what listeners will learn or experience",
   "drivingQuestion": "the one real question from the source the episode answers",
+  "premise": "one sentence naming what this episode argues or reveals",
   "lines": [
     { "speaker": "${hostNames.a}" or "${hostNames.b}", "text": "the spoken line" }
   ]
